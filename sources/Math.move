@@ -47,7 +47,7 @@ module Movemate::Math {
     /// Inspired by Henry S. Warren, Jr.'s "Hacker's Delight" (Chapter 11).
     public fun sqrt(a: u64): u64 {
         if (a == 0) {
-            return 0;
+            return 0
         };
 
         // For our first guess, we get the biggest power of 2 which is smaller than the square root of the target.
