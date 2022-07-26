@@ -1,0 +1,25 @@
+[package]
+name = "Movemate"
+version = "1.0.0"
+authors = ["David Lucid <david@pentagon.xyz>"]
+
+[addresses]
+Std = "0x1"
+AptosFramework = "0x1"
+Econia = "0xc0deb00c"
+Movemate = "0xb2207be128ba3dd1de79c064495a7c97642a513d33d4313e686c33896a332f1a"
+
+[dependencies.MoveStdlib]
+git = "https://github.com/aptos-labs/aptos-core.git"
+subdir = "aptos-move/framework/move-stdlib"
+rev = "6538efd8bf4b37c61ec0427243e864ee038df5e8"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+subdir = "aptos-move/framework/aptos-framework"
+rev = "6538efd8bf4b37c61ec0427243e864ee038df5e8"
+
+[dependencies.Econia]
+git = "https://github.com/econia-labs/econia.git"
+subdir = "src/move/econia"
+rev = "4a432c4da556d6916afa343e764086b4e2258b88"
