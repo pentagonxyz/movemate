@@ -4,6 +4,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move bu
 
 ## Modules
 
+* `Governance`: On-chain tokenholder governance using coins.
 * `LinearVesting`: Linear vesting of coins for a given beneficiary.
 * `Math`: Standard math utilities missing in the Move language.
 * `VirtualBlock`: Replace latency auctions with gas auctions (with control over MEV rewards) via virtual blocks.
