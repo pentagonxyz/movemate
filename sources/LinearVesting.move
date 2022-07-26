@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 /// @title LinearVesting
-/// @dev This contract handles the vesting of Eth and ERC20 tokens for a given beneficiary. Custody of multiple tokens
+/// @dev This contract handles the vesting of coins for a given beneficiary. Custody of multiple coins
 /// can be given to this contract, which will release the token to the beneficiary following a given vesting schedule.
 /// The vesting schedule is customizable through the {vestedAmount} function.
 /// Any token transferred to this contract will follow the vesting schedule as if they were locked from the beginning.
