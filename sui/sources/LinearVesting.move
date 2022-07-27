@@ -78,7 +78,7 @@ module Movemate::LinearVesting {
         let coin_stores = &borrow_global<CoinStoreCollection<T>>(admin).wallets;
         let collection = vec_map::get(coin_stores, &beneficiary);
         let coin_store = vec_map::get(collection, &index);
-        (Coin::value(&coin_store.coin), coin_store.released)
+        (coin::value(&coin_store.coin), coin_store.released)
     }
 
     /// @dev Release the tokens that have already vested.
@@ -94,10 +94,9 @@ module Movemate::LinearVesting {
         let coin_store = vec_map::get_mut(collection, &index);
 
         // Release amount
-        let releasable = vested_amount(wallet_info.start, wallet_info.duration, Coin::value(&coin_store.coin), coin_store.released, tx_context::epoch(ctx)) - coin_store.released;
+        let releasable = vested_amount(wallet_info.start, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, tx_context::epoch(ctx)) - coin_store.released;
         *&mut coin_store.released = *&coin_store.released + releasable;
-        let release_coin = Coin::extract(&mut coin_store.coin, releasable);
-        Coin::deposit(beneficiary, release_coin);
+        coin::split_and_transfer<T>(&mut coin_store.coin, releasable, beneficiary, ctx);
     }
 
     /// @notice Claws back coins to the admin if `can_clawback` is enabled.
@@ -116,17 +115,15 @@ module Movemate::LinearVesting {
         let coin_store = vec_map::get_mut(collection, &index);
 
         // Release amount
-        let releasable = vested_amount(wallet_info.start, wallet_info.duration, Coin::value(&coin_store.coin), coin_store.released, tx_context::epoch(ctx)) - coin_store.released;
+        let releasable = vested_amount(wallet_info.start, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, tx_context::epoch(ctx)) - coin_store.released;
         *&mut coin_store.released = *&coin_store.released + releasable;
-        let release_coin = Coin::extract(&mut coin_store.coin, releasable);
-        Coin::deposit(beneficiary, release_coin);
+        coin::split_and_transfer<T>(&mut coin_store.coin, releasable, beneficiary, ctx);
 
         // Validate clawback
         assert!(wallet_info.can_clawback, 1000);
 
         // Execute clawback
-        let clawback_coin = Coin::extract_all(&mut coin_store.coin);
-        Coin::deposit<T>(admin_address, clawback_coin);
+        coin::split_and_transfer<T>(&mut coin_store.coin, coin::value(&coin_store.coin), admin_address, ctx);
     }
 
     /// Calculates the amount that has already vested. Default implementation is a linear vesting curve.
