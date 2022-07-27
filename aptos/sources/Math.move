@@ -59,14 +59,6 @@ module Movemate::Math {
         // good first approximation of `sqrt(a)` with at least 1 correct bit.
         let result = 1;
         let x = a;
-        if (x >> 128 > 0) {
-            x = x >> 128;
-            result = result << 64;
-        };
-        if (x >> 64 > 0) {
-            x = x >> 64;
-            result = result << 32;
-        };
         if (x >> 32 > 0) {
             x = x >> 32;
             result = result << 16;
