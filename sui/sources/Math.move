@@ -45,6 +45,7 @@ module Movemate::Math {
 
     /// @dev Returns the square root of a number. If the number is not a perfect square, the value is rounded down.
     /// Inspired by Henry S. Warren, Jr.'s "Hacker's Delight" (Chapter 11).
+    /// Costs only 9 gas in comparison to the 16 gas `sui::math::sqrt` costs (tested on Aptos).
     public fun sqrt(a: u64): u64 {
         if (a == 0) {
             return 0;
