@@ -67,7 +67,7 @@ module Movemate::VirtualBlock {
 
         // Create next block
         Vector::push_back(&mut mempool.blocks, CritBit::empty<EntryType>());
-        *&mut mempool.last_block_timestamp = Timestamp::now_microseconds();
+        *&mut mempool.last_block_timestamp = now;
 
         // Return entries of last block
         last_block
