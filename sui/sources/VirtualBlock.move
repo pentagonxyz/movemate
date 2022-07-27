@@ -25,7 +25,7 @@ module Movemate::VirtualBlock {
     /// @notice Creates a new mempool (specifying miner fee rate and block time/delay).
     public fun new_mempool<BidAssetType, EntryType>(miner_fee_rate: u64, block_time: u64, ctx: &mut TxContext): Mempool<BidAssetType, EntryType> {
         Mempool<BidAssetType, EntryType> {
-            blocks: Vector::singleton<CB<EntryType>>(CritBit::empty<EntryType>()),
+            blocks: vector::singleton<CB<EntryType>>(CritBit::empty<EntryType>()),
             current_block_bids: coin::zero<BidAssetType>(ctx),
             last_block_timestamp: tx_context::epoch(ctx),
             mempool_fees: coin::zero<BidAssetType>(ctx),
@@ -45,7 +45,7 @@ module Movemate::VirtualBlock {
         coin::join(&mut mempool.current_block_bids, bid);
 
         // Add entry to tree
-        let block = Vector::borrow_mut(&mut mempool.blocks, Vector::length(&mempool.blocks) - 1);
+        let block = vector::borrow_mut(&mut mempool.blocks, vector::length(&mempool.blocks) - 1);
         CritBit::insert(block, (coin::value(&bid) as u128), entry);
     }
 
@@ -63,10 +63,10 @@ module Movemate::VirtualBlock {
         coin::join(&mut mempool.mempool_fees, coin::split(&mut mempool.current_block_bids, coin::value(&mempool.current_block_bids), ctx));
 
         // Get last block
-        let last_block = Vector::pop_back(&mut mempool.blocks);
+        let last_block = vector::pop_back(&mut mempool.blocks);
 
         // Create next block
-        Vector::push_back(&mut mempool.blocks, CritBit::empty<EntryType>());
+        vector::push_back(&mut mempool.blocks, CritBit::empty<EntryType>());
         *&mut mempool.last_block_timestamp = now;
 
         // Return entries of last block
