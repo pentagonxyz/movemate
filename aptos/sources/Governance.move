@@ -63,7 +63,7 @@ module Movemate::Governance {
     }
 
     /// @notice Initiate a new forum under the signer provided.
-    public(script) fun init_forum<CoinType>(
+    public entry fun init_forum<CoinType>(
         forum: &signer,
         voting_delay: u64,
         voting_period: u64,
@@ -85,7 +85,7 @@ module Movemate::Governance {
     }
 
     /// @notice Lock your coins for voting in the specified forum.
-    public(script) fun lock_coins<CoinType>(account: &signer, amount: u64) acquires CoinStore, Checkpoints, Delegate {
+    public entry fun lock_coins<CoinType>(account: &signer, amount: u64) acquires CoinStore, Checkpoints, Delegate {
         // Move coin in
         let sender = Signer::address_of(account);
         let coin_in = Coin::withdraw<CoinType>(account, amount);
@@ -101,7 +101,7 @@ module Movemate::Governance {
     }
 
     /// @dev Unlock coins locked for voting.
-    fun unlock_coins<CoinType>(account: &signer, amount: u64) acquires CoinStore, Checkpoints, Delegate {
+    public entry fun unlock_coins<CoinType>(account: &signer, amount: u64) acquires CoinStore, Checkpoints, Delegate {
         // Update checkpoints
         let sender = Signer::address_of(account);
         write_checkpoint(borrow_global<Delegate>(sender).delegatee, true, amount);
@@ -137,7 +137,7 @@ module Movemate::Governance {
         });
     }
 
-    public fun cast_vote<CoinType, ProposalCapabilityType>(
+    public entry fun cast_vote<CoinType, ProposalCapabilityType>(
         account: &signer,
         forum_address: address,
         vote: bool
@@ -243,7 +243,7 @@ module Movemate::Governance {
     }
 
     /// @dev Change delegation for `delegator` to `delegatee`.
-    public fun delegate<CoinType>(delegator: &signer, delegatee: address) acquires CoinStore, Checkpoints, Delegate {
+    public entry fun delegate<CoinType>(delegator: &signer, delegatee: address) acquires CoinStore, Checkpoints, Delegate {
         // Get delegator address and locked balance
         let delegator_address = Signer::address_of(delegator);
         let delegator_balance = Coin::value(&borrow_global<CoinStore<CoinType>>(delegator_address).coin);

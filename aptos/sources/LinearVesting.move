@@ -36,14 +36,14 @@ module Movemate::LinearVesting {
     }
 
     /// @dev Enables an asset on the admin's wallet collecton.
-    public fun init_asset<T>(admin: &signer) {
+    public entry fun init_asset<T>(admin: &signer) {
         move_to(admin, CoinStoreCollection<T> {
             wallets: IterableTable::new()
         });
     }
 
     /// @dev Set the beneficiary, start timestamp and vesting duration of the vesting wallet.
-    public fun init_wallet(admin: &signer, beneficiary: address, start_timestamp: u64, duration_seconds: u64, can_clawback: bool) acquires WalletInfoCollection {
+    public entry fun init_wallet(admin: &signer, beneficiary: address, start_timestamp: u64, duration_seconds: u64, can_clawback: bool) acquires WalletInfoCollection {
         // Create WalletInfoCollection if it doesn't exist
         let admin_address = Signer::address_of(admin);
 
@@ -83,7 +83,7 @@ module Movemate::LinearVesting {
     }
 
     /// @dev Release the tokens that have already vested.
-    public fun release<T>(admin: address, beneficiary: address, index: u64) acquires WalletInfoCollection, CoinStoreCollection {
+    public entry fun release<T>(admin: address, beneficiary: address, index: u64) acquires WalletInfoCollection, CoinStoreCollection {
         // Get wallet info
         let wallet_infos = &borrow_global<WalletInfoCollection>(admin).wallets;
         let collection = IterableTable::borrow(wallet_infos, beneficiary);
@@ -102,7 +102,7 @@ module Movemate::LinearVesting {
     }
 
     /// @notice Claws back coins to the admin if `can_clawback` is enabled.
-    public fun clawback<T>(admin: &signer, beneficiary: address, index: u64) acquires WalletInfoCollection, CoinStoreCollection {
+    public entry fun clawback<T>(admin: &signer, beneficiary: address, index: u64) acquires WalletInfoCollection, CoinStoreCollection {
         // Get admin address
         let admin_address = Signer::address_of(admin);
 
