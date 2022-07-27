@@ -148,8 +148,9 @@ module Movemate::Governance {
 
         // Check timestamps
         let voting_start = proposal.timestamp + forum_res.voting_delay;
-        assert!(Timestamp::now_seconds() >= voting_start, 1000);
-        assert!(Timestamp::now_seconds() < voting_start + forum_res.voting_period, 1000);
+        let now = Timestamp::now_seconds();
+        assert!(now >= voting_start, 1000);
+        assert!(now < voting_start + forum_res.voting_period, 1000);
 
         // Get past votes
         let sender = Signer::address_of(account);
@@ -180,9 +181,10 @@ module Movemate::Governance {
 
         // Check timestamps
         let post_queue = proposal.timestamp + forum_res.voting_delay + forum_res.voting_period + forum_res.queue_period;
-        assert!(Timestamp::now_seconds() >= post_queue, 1000);
+        let now = Timestamp::now_seconds();
+        assert!(now >= post_queue, 1000);
         let expiration = post_queue + forum_res.execution_window;
-        assert!(Timestamp::now_seconds() < expiration, 1000);
+        assert!(now < expiration, 1000);
 
         // Check votes
         assert!(proposal.approval_votes >= forum_res.approval_threshold, 1000);
