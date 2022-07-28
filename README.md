@@ -4,6 +4,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 
 ## Modules
 
+* `Escrow` (Sui only): Very basic coin escrow module on Sui.
 * `Governance`: On-chain tokenholder governance using coins.
 * `LinearVesting`: Linear vesting of coins for a given beneficiary.
 * `Math`: Standard math utilities missing in the Move language (for `u64`).
