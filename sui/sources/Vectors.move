@@ -36,4 +36,72 @@ module Movemate::Vectors {
             low
         }
     }
+
+    public fun lt(a: &vector<u8>, b: &vector<u8>): bool {
+        let i = 0;
+        let len = vector::length(a);
+        assert!(len == vector::length(b), 10000);
+
+        loop {
+            if (i >= len) break;
+            let aa = *vector::borrow(a, i);
+            let bb = *vector::borrow(b, i);
+            if (aa < bb) return true;
+            if (aa > bb) return false;
+            i = i + 1;
+        };
+
+        false
+    }
+
+    public fun gt(a: &vector<u8>, b: &vector<u8>): bool {
+        let i = 0;
+        let len = vector::length(a);
+        assert!(len == vector::length(b), 10000);
+
+        loop {
+            if (i >= len) break;
+            let aa = *vector::borrow(a, i);
+            let bb = *vector::borrow(b, i);
+            if (aa > bb) return true;
+            if (aa < bb) return false;
+            i = i + 1;
+        };
+
+        false
+    }
+
+    public fun lte(a: &vector<u8>, b: &vector<u8>): bool {
+        let i = 0;
+        let len = vector::length(a);
+        assert!(len == vector::length(b), 10000);
+
+        loop {
+            if (i >= len) break;
+            let aa = *vector::borrow(a, i);
+            let bb = *vector::borrow(b, i);
+            if (aa <= bb) return true;
+            if (aa > bb) return false;
+            i = i + 1;
+        };
+
+        true
+    }
+
+    public fun gte(a: &vector<u8>, b: &vector<u8>): bool {
+        let i = 0;
+        let len = vector::length(a);
+        assert!(len == vector::length(b), 10000);
+
+        loop {
+            if (i >= len) break;
+            let aa = *vector::borrow(a, i);
+            let bb = *vector::borrow(b, i);
+            if (aa >= bb) return true;
+            if (aa < bb) return false;
+            i = i + 1;
+        };
+
+        true
+    }
 }
