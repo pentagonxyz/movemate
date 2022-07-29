@@ -88,7 +88,7 @@ module Movemate::Governance {
     public entry fun lock_coins<CoinType>(coins: &mut Coin<CoinType>, account: address, amount: u64, ctx: &mut TxContext) acquires CoinStore, Checkpoints, Delegate {
         // Move coin in
         let sender = signer::address_of(account);
-        let coin_in = coin::split<CoinType>(coins, amount, ctx);
+        let coin_in = coin::take<CoinType>(coin::balance_mut(coins), amount, ctx);
 
         if (exists<CoinStore<CoinType>>(sender)) {
             coin::join(&mut borrow_global_mut<CoinStore<CoinType>>(sender).coin, coin_in);

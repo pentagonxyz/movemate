@@ -36,7 +36,7 @@ module Movemate::VirtualBlock {
 
     /// @notice Extracts all fees accrued by a mempool.
     public fun extract_mempool_fees<BidAssetType, EntryType>(mempool: &mut Mempool<BidAssetType, EntryType>, ctx: &mut TxContext): Coin<BidAssetType> {
-        coin::split(&mut mempool.mempool_fees, coin::value(&mempool.mempool_fees))
+        coin::take(coin::balance_mut(&mut mempool.mempool_fees), coin::value(&mempool.mempool_fees), ctx)
     }
 
     /// @notice Adds an entry to the latest virtual block.
@@ -60,7 +60,7 @@ module Movemate::VirtualBlock {
         coin::split_and_transfer(&mut mempool.current_block_bids, miner_fee, miner, ctx);
 
         // Send the rest to the mempool admin
-        coin::join(&mut mempool.mempool_fees, coin::split(&mut mempool.current_block_bids, coin::value(&mempool.current_block_bids), ctx));
+        coin::join(&mut mempool.mempool_fees, coin::take(coin::balance_mut(&mut mempool.current_block_bids), coin::value(&mempool.current_block_bids), ctx));
 
         // Get last block
         let last_block = vector::pop_back(&mut mempool.blocks);
