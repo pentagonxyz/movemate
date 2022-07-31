@@ -32,7 +32,8 @@ module Movemate::Governance {
         votes: VecMap<address, bool>,
         approval_votes: u64,
         cancellation_votes: u64,
-        timestamp: u64
+        timestamp: u64,
+        executed: bool
     }
 
     struct GovernanceCapability<phantom CoinType> has drop {
@@ -176,7 +177,7 @@ module Movemate::Governance {
         ctx: &mut TxContext
     ): GovernanceCapability<CoinType> acquires Forum, Proposal {
         // Get proposal and forum
-        let proposal = borrow_global<Proposal<CoinType, ProposalCapabilityType>>(forum_address);
+        let proposal = borrow_global_mut<Proposal<CoinType, ProposalCapabilityType>>(forum_address);
         let forum_res = borrow_global<Forum<CoinType>>(forum_address);
 
         // Check timestamps
@@ -185,10 +186,14 @@ module Movemate::Governance {
         assert!(now >= post_queue, 1000);
         let expiration = post_queue + forum_res.execution_window;
         assert!(now < expiration, 1000);
+        assert!(!proposal.executed, 1000);
 
         // Check votes
         assert!(proposal.approval_votes >= forum_res.approval_threshold, 1000);
         assert!(proposal.cancellation_votes < forum_res.cancellation_threshold, 1000);
+
+        // Set proposal as executed
+        *&mut proposal.executed = true;
 
         // Return GovernanceCapability with forum address
         GovernanceCapability<CoinType> { forum_address }
