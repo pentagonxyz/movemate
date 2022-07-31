@@ -13,7 +13,7 @@ git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework/deps/move-stdlib"
 rev = "fa973184a13579108a45965f7ff0fc3f2e2dc753"
 
-[dependencies.sui]
+[dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework"
 rev = "fa973184a13579108a45965f7ff0fc3f2e2dc753"
