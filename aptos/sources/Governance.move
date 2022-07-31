@@ -36,8 +36,7 @@ module Movemate::Governance {
     }
 
     struct GovernanceCapability<phantom CoinType> has drop {
-        forum_address: address,
-        expiration: u64
+        forum_address: address
     }
 
     struct Delegate has key {
@@ -57,9 +56,9 @@ module Movemate::Governance {
         coin: Coin<CoinType>
     }
 
-    /// @notice Checks if a governance capability matches the forum address and is unexpired. For use in an existing contract.
+    /// @notice Checks if a governance capability matches the forum address. For use in an existing contract.
     public fun verify_governance_capability<CoinType>(governance_capability: &GovernanceCapability<CoinType>, forum_address: address): bool {
-        governance_capability.forum_address == forum_address && Timestamp::now_seconds() < governance_capability.expiration
+        governance_capability.forum_address == forum_address
     }
 
     /// @notice Initiate a new forum under the signer provided.
@@ -190,8 +189,8 @@ module Movemate::Governance {
         assert!(proposal.approval_votes >= forum_res.approval_threshold, 1000);
         assert!(proposal.cancellation_votes < forum_res.cancellation_threshold, 1000);
 
-        // Return GovernanceCapability with forum address and expiration date
-        GovernanceCapability<CoinType> { forum_address, expiration }
+        // Return GovernanceCapability with forum address
+        GovernanceCapability<CoinType> { forum_address }
     }
 
     /// @dev Get the address `account` is currently delegating to.
