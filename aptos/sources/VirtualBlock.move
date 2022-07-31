@@ -14,7 +14,7 @@ module Movemate::VirtualBlock {
 
     /// @notice Struct for a virtual block with entries sorted by bids.
     struct Mempool<BidAssetType, EntryType> {
-        blocks: vector<CB<EntryType>>,
+        blocks: vector<CB<vector<EntryType>>>,
         current_block_bids: Coin<BidAssetType>,
         last_block_timestamp: u64,
         mempool_fees: Coin<BidAssetType>,
@@ -25,7 +25,7 @@ module Movemate::VirtualBlock {
     /// @notice Creates a new mempool (specifying miner fee rate and block time/delay).
     public fun new_mempool<BidAssetType, EntryType>(miner_fee_rate: u64, block_time: u64): Mempool<BidAssetType, EntryType> {
         Mempool<BidAssetType, EntryType> {
-            blocks: Vector::singleton<CB<EntryType>>(CritBit::empty<EntryType>()),
+            blocks: Vector::singleton<CB<vector<EntryType>>>(CritBit::empty<vector<EntryType>>()),
             current_block_bids: Coin::zero<BidAssetType>(),
             last_block_timestamp: Timestamp::now_microseconds(),
             mempool_fees: Coin::zero<BidAssetType>(),
@@ -46,11 +46,13 @@ module Movemate::VirtualBlock {
 
         // Add entry to tree
         let block = Vector::borrow_mut(&mut mempool.blocks, Vector::length(&mempool.blocks) - 1);
-        CritBit::insert(block, (Coin::value(&bid) as u128), entry);
+        let bid_value = (Coin::value(&bid) as u128);
+        if (CritBit::has_key(block, bid_value)) Vector::push_back(CritBit::borrow_mut(block, bid_value), entry);
+        else CritBit::insert(block, bid_value, Vector::singleton(entry));
     }
 
     /// @notice Validates the block time and distributes fees.
-    public fun mine_entries<BidAssetType, EntryType>(mempool: &mut Mempool<BidAssetType, EntryType>, miner: address): CB<EntryType> {
+    public fun mine_entries<BidAssetType, EntryType>(mempool: &mut Mempool<BidAssetType, EntryType>, miner: address): CB<vector<EntryType>> {
         // Validate time now >= last block time + block delay
         let now = Timestamp::now_microseconds();
         assert!(now >= mempool.last_block_timestamp + mempool.block_time, 1000);
@@ -66,7 +68,7 @@ module Movemate::VirtualBlock {
         let last_block = Vector::pop_back(&mut mempool.blocks);
 
         // Create next block
-        Vector::push_back(&mut mempool.blocks, CritBit::empty<EntryType>());
+        Vector::push_back(&mut mempool.blocks, CritBit::empty<vector<EntryType>>());
         *&mut mempool.last_block_timestamp = now;
 
         // Return entries of last block
