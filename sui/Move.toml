@@ -18,8 +18,3 @@ rev = "fa973184a13579108a45965f7ff0fc3f2e2dc753"
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework"
 rev = "fa973184a13579108a45965f7ff0fc3f2e2dc753"
-
-[dependencies.Econia]
-git = "https://github.com/econia-labs/econia.git"
-subdir = "src/move/econia"
-rev = "4a432c4da556d6916afa343e764086b4e2258b88"

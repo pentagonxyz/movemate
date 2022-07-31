@@ -18,8 +18,3 @@ rev = "6538efd8bf4b37c61ec0427243e864ee038df5e8"
 git = "https://github.com/aptos-labs/aptos-core.git"
 subdir = "aptos-move/framework/aptos-framework"
 rev = "6538efd8bf4b37c61ec0427243e864ee038df5e8"
-
-[dependencies.Econia]
-git = "https://github.com/econia-labs/econia.git"
-subdir = "src/move/econia"
-rev = "4a432c4da556d6916afa343e764086b4e2258b88"

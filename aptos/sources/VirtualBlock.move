@@ -10,7 +10,7 @@ module Movemate::VirtualBlock {
     use AptosFramework::Coin::{Self, Coin};
     use AptosFramework::Timestamp;
 
-    use Econia::CritBit::{Self, CB};
+    use Movemate::CritBit::{Self, CB};
 
     /// @notice Struct for a virtual block with entries sorted by bids.
     struct Mempool<BidAssetType, EntryType> {

@@ -10,7 +10,7 @@ module Movemate::VirtualBlock {
     use sui::coin::{Self, Coin};
     use sui::tx_context::{Self, TxContext};
 
-    use Econia::CritBit::{Self, CB};
+    use Movemate::CritBit::{Self, CB};
 
     /// @notice Struct for a virtual block with entries sorted by bids.
     struct Mempool<BidAssetType, EntryType> {
