@@ -6,7 +6,6 @@ authors = ["David Lucid <david@pentagon.xyz>"]
 [addresses]
 Std = "0x1"
 AptosFramework = "0x1"
-Econia = "0xc0deb00c"
 Movemate = "0xb2207be128ba3dd1de79c064495a7c97642a513d33d4313e686c33896a332f1a"
 
 [dependencies.MoveStdlib]
