@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// Based on: OpenZeppelin Contracts
 
 /// @title Governance
 /// @notice On-chain governance. In your existing contracts, give on-chain access control to your contracts by requiring the use of a `GovernanceCapability<CoinType>` with `verify_governance_capability<CoinType>(governance_capability: &GovernanceCapability<CoinType>, forum_address: address)`
@@ -134,6 +135,8 @@ module Movemate::Governance {
             approval_votes: 0,
             cancellation_votes: 0,
             timestamp: Timestamp::now_seconds()
+            timestamp: Timestamp::now_seconds(),
+            executed: false
         });
     }
 
@@ -154,7 +157,7 @@ module Movemate::Governance {
 
         // Get past votes
         let sender = Signer::address_of(account);
-        let votes = get_past_votes(sender, voting_start);
+        let votes = get_past_votes<CoinType>(sender, voting_start);
 
         // Remove old vote if necessary
         if (Table::contains(&proposal.votes, sender)) {
@@ -257,7 +260,7 @@ module Movemate::Governance {
         if (exists<Delegate<CoinType>>(delegator_address)) {
             // Update delegatee (removing old delegatee's votes)
             let delegate_ref = &mut borrow_global_mut<Delegate<CoinType>>(delegator_address).delegatee;
-            write_checkpoint(*delegate_ref, true, delegator_balance);
+            write_checkpoint<CoinType>(*delegate_ref, true, delegator_balance);
             *delegate_ref = delegatee;
         } else {
             // Add delegatee
@@ -265,7 +268,7 @@ module Movemate::Governance {
         };
 
         // Add votes to new delegatee
-        write_checkpoint(delegatee, false, delegator_balance);
+        write_checkpoint<CoinType>(delegatee, false, delegator_balance);
     }
 
     /// @dev Internal function to add a votes checkpoint.
