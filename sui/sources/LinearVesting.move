@@ -53,6 +53,7 @@ module Movemate::LinearVesting {
 
     /// @notice Claws back coins to the `clawbacker` if enabled.
     /// @dev TODO: Clawback capability.
+    /// @dev TODO: Destroy wallet.
     public entry fun clawback<T>(wallet: &mut Wallet<T>, ctx: &mut TxContext) {
         // Check clawbacker address
         let sender = tx_context::sender(ctx);

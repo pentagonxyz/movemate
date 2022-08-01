@@ -24,7 +24,7 @@ module Movemate::Escrow {
         transfer::transfer(escrow, sender);
     }
 
-    /// @dev Transfers escrowed objected to the recipient.
+    /// @dev Transfers escrowed object to the recipient.
     public entry fun transfer<T: key + store>(escrow: Escrow<T>) {
         let Escrow {
             info: info,
