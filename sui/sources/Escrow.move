@@ -5,9 +5,9 @@
 module Movemate::Escrow {
     use sui::object::{Self, Info};
     use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context::TxContext;
 
-    struct Escrow<T: store> has key {
+    struct Escrow<T: key + store> has key {
         info: Info,
         recipient: address,
         obj: T
@@ -15,25 +15,13 @@ module Movemate::Escrow {
 
     /// @dev Stores the sent object in an escrow object.
     /// @param recipient The destination address of the escrowed object.
-    public entry fun escrow<T: store>(sender: address, recipient: address, obj_in: T, ctx: &mut TxContext) {
+    public entry fun escrow<T: key + store>(sender: address, recipient: address, obj_in: T, ctx: &mut TxContext) {
         let escrow = Escrow<T> {
             info: object::new(ctx),
             recipient,
             obj: obj_in
         };
         transfer::transfer(escrow, sender);
-    }
-
-    /// @dev Withdraw escrowed objected to the recipient.
-    public entry fun withdraw<T: store>(escrow: Escrow<T>, ctx: &mut TxContext): T {
-        let Escrow {
-            info: info,
-            recipient: recipient,
-            obj: obj,
-        } = escrow;
-        assert!(recipient == tx_context::sender(ctx), 1000);
-        object::delete(info);
-        obj
     }
 
     /// @dev Transfers escrowed objected to the recipient.
