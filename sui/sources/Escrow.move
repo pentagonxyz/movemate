@@ -1,42 +1,37 @@
 // SPDX-License-Identifier: MIT
-// Based on: OpenZeppelin Contracts (last updated v4.7.0) (utils/escrow/Escrow.sol)
 
 /// @title Escrow
-/// @dev Base escrow module, holds funds designated for a payee until they withdraw them.
+/// @dev Basic escrow module: holds an object designated for a recipient until the sender approves withdrawal.
 module Movemate::Escrow {
-    use std::signer;
+    use sui::object::{Self, Info};
+    use sui::transfer;
+    use sui::tx_context::TxContext;
 
-    use sui::coin::{Self, Coin};
-    use sui::vec_map::{Self, VecMap};
-
-    struct Escrow<phantom T> has key {
-        coins: VecMap<address, Coin<T>>
+    struct Escrow<T> has key {
+        info: Info,
+        recipient: address,
+        obj: T
     }
 
-    public fun deposits_of<T>(payer: address, payee: address): u64 acquires Escrow {
-        coin::value(vec_map::get(&borrow_global<Escrow<T>>(payer).coins, &payee))
-    }
-
-    /// @dev Stores the sent amount as credit to be withdrawn.
-    /// @param payee The destination address of the funds.
-    public entry fun deposit<T>(payer: &signer, payee: address, coin_in: Coin<T>) acquires Escrow {
-        let payer_address = signer::address_of(payer);
-        if (!exists<Escrow<T>>(payer_address)) move_to(payer, Escrow<T> { coins: vec_map::empty() });
-        let coins = &mut borrow_global_mut<Escrow<T>>(payer_address).coins;
-        if (vec_map::contains(coins, &payee)) {
-            let (_, old_coin) = vec_map::remove<address, Coin<T>>(coins, &payee);
-            coin::join(&mut coin_in, old_coin);
+    /// @dev Stores the sent object in an escrow object.
+    /// @param recipient The destination address of the escrowed object.
+    public entry fun escrow<T>(sender: address, recipient: address, obj_in: T, ctx: &mut TxContext) {
+        let escrow = Escrow<T> {
+            info: object::new(ctx),
+            recipient,
+            obj: obj_in
         };
-        vec_map::insert(coins, payee, coin_in);
+        transfer::transfer(escrow, sender);
     }
 
-    /// @dev Withdraw accumulated balance for a payee, forwarding all gas to the
-    /// recipient.
-    /// @param payee The address whose funds will be withdrawn and transferred to.
-    public entry fun withdraw<T>(payer: &signer, payee: address) acquires Escrow {
-        let payer_address = signer::address_of(payer);
-        let coins = &mut borrow_global_mut<Escrow<T>>(payer_address).coins;
-        let (_, coin_out) = vec_map::remove(coins, &payee);
-        coin::transfer(coin_out, payee);
+    /// @dev Withdraw escrowed objected to the recipient.
+    public entry fun withdraw<T>(escrow: &mut Escrow<T>) {
+        let Escrow {
+            info: info,
+            recipient: recipient,
+            obj: obj,
+        } = escrow;
+        object::delete(info);
+        transfer::transfer(obj, recipient);
     }
 }
