@@ -11,12 +11,15 @@ module Movemate::Governance {
     use std::vector;
 
     use sui::coin::{Self, Coin};
-    use sui::vec_map::{Self, VecMap};
+    use sui::object::{Self, ID, Info};
+    use sui::transfer;
     use sui::tx_context::{Self, TxContext};
+    use sui::vec_map::{Self, VecMap};
 
     use Movemate::Math;
 
     struct Forum<phantom CoinType> has key {
+        info: Info,
         voting_delay: u64,
         voting_period: u64,
         queue_period: u64,
@@ -26,7 +29,9 @@ module Movemate::Governance {
         cancellation_threshold: u64
     }
 
-    struct Proposal<phantom CoinType, phantom ProposalCapability> has key {
+    struct Proposal<phantom ProposalCapability> has key {
+        info: Info,
+        forum_id: ID,
         name: String,
         metadata: vector<u8>,
         votes: VecMap<address, bool>,
@@ -36,12 +41,20 @@ module Movemate::Governance {
         executed: bool
     }
 
-    struct GovernanceCapability<phantom CoinType> has drop {
-        forum_address: address
+    struct GovernanceCapability has drop {
+        forum_id: ID
     }
 
-    struct Delegate has key {
-        delegatee: address
+    struct CoinStore<phantom CoinType> has key {
+        info: Info,
+        delegatee: address,
+        coin: Coin<CoinType>
+    }
+
+    struct Delegate<phantom CoinType> has key {
+        info: Info,
+        delegatee: address,
+        checkpoints: vector<Checkpoint>
     }
 
     struct Checkpoint has store {
@@ -49,31 +62,24 @@ module Movemate::Governance {
         from_timestamp: u64
     }
 
-    struct Checkpoints has key {
-        checkpoints: vector<Checkpoint>
-    }
-
-    struct CoinStore<phantom CoinType> has key {
-        coin: Coin<CoinType>
-    }
-
     /// @notice Checks if a governance capability matches the forum address. For use in an existing contract.
-    public fun verify_governance_capability<CoinType>(governance_capability: &GovernanceCapability<CoinType>, forum_address: address): bool {
-        governance_capability.forum_address == forum_address
+    public fun verify_governance_capability(governance_capability: &GovernanceCapability, forum_id: ID): bool {
+        governance_capability.forum_id == forum_id
     }
 
     /// @notice Initiate a new forum under the signer provided.
     public entry fun init_forum<CoinType>(
-        forum: &signer,
         voting_delay: u64,
         voting_period: u64,
         queue_period: u64,
         execution_window: u64,
         proposal_threshold: u64,
         approval_threshold: u64,
-        cancellation_threshold: u64
+        cancellation_threshold: u64,
+        ctx: &mut TxContext
     ) {
-        move_to(forum, Forum<CoinType> {
+        transfer::share_object(Forum<CoinType> {
+            info: object::new(ctx),
             voting_delay,
             voting_period,
             queue_period,
@@ -84,51 +90,80 @@ module Movemate::Governance {
         });
     }
 
+    /// @notice Creates a new Delegate object.
+    public entry fun new_voter<CoinType>(delegatee: address, ctx: &mut TxContext) {
+        transfer::share_object(Delegate<CoinType> {
+            info: object::new(ctx),
+            delegatee,
+            checkpoints: vector::empty()
+        });
+    }
+
     /// @notice Lock your coins for voting in the specified forum.
-    public entry fun lock_coins<CoinType>(coins: &mut Coin<CoinType>, account: &signer, amount: u64, ctx: &mut TxContext) acquires CoinStore, Checkpoints, Delegate {
+    public entry fun lock_coins<CoinType>(coins: &mut Coin<CoinType>, owner: address, amount: u64, delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
         // Move coin in
-        let sender = signer::address_of(account);
         let coin_in = coin::take<CoinType>(coin::balance_mut(coins), amount, ctx);
 
-        if (exists<CoinStore<CoinType>>(sender)) {
-            coin::join(&mut borrow_global_mut<CoinStore<CoinType>>(sender).coin, coin_in);
-        } else {
-            move_to(account, CoinStore { coin: coin_in });
+        // Create new store
+        let coin_store = CoinStore {
+            info: object::new(ctx),
+            coin: coin_in,
+            delegatee: delegatee.delegatee
         };
 
         // Update checkpoints
-        write_checkpoint(borrow_global<Delegate>(sender).delegatee, false, amount, ctx);
+        write_checkpoint<CoinType>(delegatee, false, amount, ctx);
+
+        // Transfer store to owner
+        transfer::transfer(coin_store, owner);
+    }
+
+    /// @notice Lock your coins for voting in the specified forum.
+    public entry fun lock_more_coins<CoinType>(coin_store: &mut CoinStore<CoinType>, coins: &mut Coin<CoinType>, amount: u64, delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
+        // Input validation
+        assert!(delegatee.delegatee == coin_store.delegatee, 1000);
+
+        // Move coin in
+        let coin_in = coin::take<CoinType>(coin::balance_mut(coins), amount, ctx);
+
+        // Add to store
+        coin::join(&mut coin_store.coin, coin_in);
+
+        // Update checkpoints
+        write_checkpoint<CoinType>(delegatee, false, amount, ctx);
     }
 
     /// @dev Unlock coins locked for voting.
-    public entry fun unlock_coins<CoinType>(account: &signer, amount: u64, ctx: &mut TxContext) acquires CoinStore, Checkpoints, Delegate {
+    public entry fun unlock_coins<CoinType>(coin_store: &mut CoinStore<CoinType>, recipient: address, amount: u64, delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
+        // Input validation
+        assert!(delegatee.delegatee == coin_store.delegatee, 1000);
+
         // Update checkpoints
-        let sender = signer::address_of(account);
-        write_checkpoint(borrow_global<Delegate>(sender).delegatee, true, amount, ctx);
+        write_checkpoint<CoinType>(delegatee, true, amount, ctx);
 
         // Move coin out
-        coin::split_and_transfer(&mut borrow_global_mut<CoinStore<CoinType>>(sender).coin, amount, sender, ctx);
+        coin::split_and_transfer(&mut coin_store.coin, amount, recipient, ctx);
     }
 
     /// @notice Create a new proposal, requiring the use of ProposalCapabilityType to execute it.
-    public fun create_proposal<CoinType, ProposalCapabilityType>(
-        forum: &signer,
+    public entry fun create_proposal<CoinType, ProposalCapabilityType>(
+        forum: &Forum<CoinType>,
         proposer: &signer,
-        _proposal_capability: &ProposalCapabilityType,
         name: String,
         metadata: vector<u8>,
+        voter: &Delegate<CoinType>,
         ctx: &mut TxContext
-    ) acquires Forum, Checkpoints {
+    ) {
         // Validate !exists and proposer votes >= proposer threshold
-        let forum_address = signer::address_of(forum);
-        assert!(!exists<Proposal<CoinType, ProposalCapabilityType>>(forum_address), 1000);
         let proposer_address = signer::address_of(proposer);
-        let proposer_votes = get_votes(proposer_address);
-        let forum_res = borrow_global<Forum<CoinType>>(forum_address);
-        assert!(proposer_votes >= forum_res.proposal_threshold, 1000);
+        assert!(proposer_address == voter.delegatee, 1000);
+        let proposer_votes = get_votes(voter);
+        assert!(proposer_votes >= forum.proposal_threshold, 1000);
 
         // Add proposal to forum
-        move_to(forum, Proposal<CoinType, ProposalCapabilityType> {
+        transfer::share_object(Proposal<ProposalCapabilityType> {
+            info: object::new(ctx),
+            forum_id: *object::info_id(&forum.info),
             name,
             metadata,
             votes: vec_map::empty(),
@@ -140,24 +175,24 @@ module Movemate::Governance {
     }
 
     public entry fun cast_vote<CoinType, ProposalCapabilityType>(
+        forum: &Forum<CoinType>,
+        proposal: &mut Proposal<ProposalCapabilityType>,
         account: &signer,
-        forum_address: address,
         vote: bool,
+        voter: &Delegate<CoinType>,
         ctx: &mut TxContext
-    ) acquires Forum, Proposal, Checkpoints {
-        // Get proposal and forum
-        let proposal = borrow_global_mut<Proposal<CoinType, ProposalCapabilityType>>(forum_address);
-        let forum_res = borrow_global<Forum<CoinType>>(forum_address);
-
+    ) {
         // Check timestamps
-        let voting_start = proposal.timestamp + forum_res.voting_delay;
+        assert!(*object::info_id(&forum.info) == proposal.forum_id, 1000);
+        let voting_start = proposal.timestamp + forum.voting_delay;
         let now = tx_context::epoch(ctx);
         assert!(now >= voting_start, 1000);
-        assert!(now < voting_start + forum_res.voting_period, 1000);
+        assert!(now < voting_start + forum.voting_period, 1000);
 
         // Get past votes
         let sender = signer::address_of(account);
-        let votes = get_past_votes(sender, voting_start, ctx);
+        assert!(sender == voter.delegatee, 1000);
+        let votes = get_past_votes(voter, voting_start, ctx);
 
         // Remove old vote if necessary
         if (vec_map::contains(&proposal.votes, &sender)) {
@@ -175,41 +210,39 @@ module Movemate::Governance {
 
     /// @notice Executes a proposal by returning the new contract a GovernanceCapability.
     public fun execute_proposal<CoinType, ProposalCapabilityType: drop>(
-        forum_address: address,
+        forum: &Forum<CoinType>,
+        proposal: &mut Proposal<ProposalCapabilityType>,
         _proposal_capability: ProposalCapabilityType,
         ctx: &mut TxContext
-    ): GovernanceCapability<CoinType> acquires Forum, Proposal {
-        // Get proposal and forum
-        let proposal = borrow_global_mut<Proposal<CoinType, ProposalCapabilityType>>(forum_address);
-        let forum_res = borrow_global<Forum<CoinType>>(forum_address);
-
+    ): GovernanceCapability {
         // Check timestamps
-        let post_queue = proposal.timestamp + forum_res.voting_delay + forum_res.voting_period + forum_res.queue_period;
+        assert!(*object::info_id(&forum.info) == proposal.forum_id, 1000);
+        let post_queue = proposal.timestamp + forum.voting_delay + forum.voting_period + forum.queue_period;
         let now = tx_context::epoch(ctx);
         assert!(now >= post_queue, 1000);
-        let expiration = post_queue + forum_res.execution_window;
+        let expiration = post_queue + forum.execution_window;
         assert!(now < expiration, 1000);
         assert!(!proposal.executed, 1000);
 
         // Check votes
-        assert!(proposal.approval_votes >= forum_res.approval_threshold, 1000);
-        assert!(proposal.cancellation_votes < forum_res.cancellation_threshold, 1000);
+        assert!(proposal.approval_votes >= forum.approval_threshold, 1000);
+        assert!(proposal.cancellation_votes < forum.cancellation_threshold, 1000);
 
         // Set proposal as executed
         *&mut proposal.executed = true;
 
-        // Return GovernanceCapability with forum address
-        GovernanceCapability<CoinType> { forum_address }
+        // Return GovernanceCapability with forum ID
+        GovernanceCapability { forum_id: *object::info_id(&forum.info) }
     }
 
     /// @dev Get the address `account` is currently delegating to.
-    public fun delegates(account: address): address acquires Delegate {
-        borrow_global<Delegate>(account).delegatee
+    public fun delegates<CoinType>(coin_store: &CoinStore<CoinType>): address {
+        coin_store.delegatee
     }
 
     /// @dev Gets the current votes balance for `account`
-    public fun get_votes(account: address): u64 acquires Checkpoints {
-        let checkpoints = &borrow_global<Checkpoints>(account).checkpoints;
+    public fun get_votes<CoinType>(voter: &Delegate<CoinType>): u64 {
+        let checkpoints = &voter.checkpoints;
         let pos = vector::length(checkpoints);
         if (pos == 0) 0 else vector::borrow(checkpoints, pos - 1).votes
     }
@@ -217,14 +250,14 @@ module Movemate::Governance {
     /// @dev Retrieve the number of votes for `account` at the end of `blockNumber`.
     /// Requirements:
     /// - `timestamp` must have already happened
-    public fun get_past_votes(account: address, timestamp: u64, ctx: &mut TxContext): u64 acquires Checkpoints {
+    public fun get_past_votes<CoinType>(voter: &Delegate<CoinType>, timestamp: u64, ctx: &mut TxContext): u64 {
         assert!(timestamp < tx_context::epoch(ctx), 1000);
-        checkpoints_lookup(account, timestamp)
+        checkpoints_lookup(voter, timestamp)
     }
 
     /// @dev Lookup a value in a list of (sorted) checkpoints.
-    fun checkpoints_lookup(account: address, timestamp: u64): u64 acquires Checkpoints {
-        let ckpts = &borrow_global<Checkpoints>(account).checkpoints;
+    fun checkpoints_lookup<CoinType>(voter: &Delegate<CoinType>, timestamp: u64): u64 {
+        let ckpts = &voter.checkpoints;
 
         // We run a binary search to look for the earliest checkpoint taken after `blockNumber`.
         //
@@ -253,28 +286,22 @@ module Movemate::Governance {
     }
 
     /// @dev Change delegation for `delegator` to `delegatee`.
-    public entry fun delegate<CoinType>(delegator: &signer, delegatee: address, ctx: &mut TxContext) acquires CoinStore, Checkpoints, Delegate {
-        // Get delegator address and locked balance
-        let delegator_address = signer::address_of(delegator);
-        let delegator_balance = coin::value(&borrow_global<CoinStore<CoinType>>(delegator_address).coin);
+    /// TODO: Optional delegation?
+    public entry fun delegate<CoinType>(coin_store: &mut CoinStore<CoinType>, delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
+        // Get delegator locked balance
+        let delegator_balance = coin::value(&coin_store.coin);
         
-        if (exists<Delegate>(delegator_address)) {
-            // Update delegatee (removing old delegatee's votes)
-            let delegate_ref = &mut borrow_global_mut<Delegate>(delegator_address).delegatee;
-            write_checkpoint(*delegate_ref, true, delegator_balance, ctx);
-            *delegate_ref = delegatee;
-        } else {
-            // Add delegatee
-            move_to(delegator, Delegate { delegatee });
-        };
+        // Update delegatee (removing old delegatee's votes)
+        write_checkpoint<CoinType>(delegatee, true, delegator_balance, ctx);
+        *&mut coin_store.delegatee = delegatee.delegatee;
 
         // Add votes to new delegatee
-        write_checkpoint(delegatee, false, delegator_balance, ctx);
+        write_checkpoint<CoinType>(delegatee, false, delegator_balance, ctx);
     }
 
     /// @dev Internal function to add a votes checkpoint.
-    fun write_checkpoint(account: address, subtract_not_add: bool, delta: u64, ctx: &mut TxContext): (u64, u64) acquires Checkpoints {
-        let ckpts = &mut borrow_global_mut<Checkpoints>(account).checkpoints;
+    fun write_checkpoint<CoinType>(voter: &mut Delegate<CoinType>, subtract_not_add: bool, delta: u64, ctx: &mut TxContext): (u64, u64) {
+        let ckpts = &mut voter.checkpoints;
 
         let pos = vector::length(ckpts);
         let last_ckpt = vector::borrow_mut(ckpts, pos - 1);
