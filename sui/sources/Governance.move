@@ -12,7 +12,7 @@ module Movemate::Governance {
 
     use sui::coin::{Self, Coin};
     use sui::vec_map::{Self, VecMap};
-    use sui::tx_context;
+    use sui::tx_context::{Self, TxContext};
 
     use Movemate::Math;
 
@@ -85,7 +85,7 @@ module Movemate::Governance {
     }
 
     /// @notice Lock your coins for voting in the specified forum.
-    public entry fun lock_coins<CoinType>(coins: &mut Coin<CoinType>, account: address, amount: u64, ctx: &mut TxContext) acquires CoinStore, Checkpoints, Delegate {
+    public entry fun lock_coins<CoinType>(coins: &mut Coin<CoinType>, account: &signer, amount: u64, ctx: &mut TxContext) acquires CoinStore, Checkpoints, Delegate {
         // Move coin in
         let sender = signer::address_of(account);
         let coin_in = coin::take<CoinType>(coin::balance_mut(coins), amount, ctx);
@@ -114,9 +114,10 @@ module Movemate::Governance {
     public fun create_proposal<CoinType, ProposalCapabilityType>(
         forum: &signer,
         proposer: &signer,
-        proposal_capability: &ProposalCapabilityType,
+        _proposal_capability: &ProposalCapabilityType,
         name: String,
         metadata: vector<u8>,
+        ctx: &mut TxContext
     ) acquires Forum, Checkpoints {
         // Validate !exists and proposer votes >= proposer threshold
         let forum_address = signer::address_of(forum);
@@ -133,14 +134,16 @@ module Movemate::Governance {
             votes: vec_map::empty(),
             approval_votes: 0,
             cancellation_votes: 0,
-            timestamp: tx_context::epoch(ctx)
+            timestamp: tx_context::epoch(ctx),
+            executed: false
         });
     }
 
     public entry fun cast_vote<CoinType, ProposalCapabilityType>(
         account: &signer,
         forum_address: address,
-        vote: bool
+        vote: bool,
+        ctx: &mut TxContext
     ) acquires Forum, Proposal, Checkpoints {
         // Get proposal and forum
         let proposal = borrow_global_mut<Proposal<CoinType, ProposalCapabilityType>>(forum_address);
@@ -154,26 +157,26 @@ module Movemate::Governance {
 
         // Get past votes
         let sender = signer::address_of(account);
-        let votes = get_past_votes(sender, voting_start);
+        let votes = get_past_votes(sender, voting_start, ctx);
 
         // Remove old vote if necessary
         if (vec_map::contains(&proposal.votes, &sender)) {
-            let old_vote = vec_map::remove(&mut proposal.votes, &sender);
+            let (_, old_vote) = vec_map::remove(&mut proposal.votes, &sender);
             assert!(vote != old_vote, 1000); // VOTE_NOT_CHANGED
             if (old_vote) *&mut proposal.approval_votes = *&proposal.approval_votes - votes
             else *&mut proposal.cancellation_votes = *&proposal.cancellation_votes - votes;
         };
 
         // Cast new vote
-        vec_map::insert(&mut proposal.votes, &sender, vote);
+        vec_map::insert(&mut proposal.votes, sender, vote);
         if (vote) *&mut proposal.approval_votes = *&proposal.approval_votes + votes
         else *&mut proposal.cancellation_votes = *&proposal.cancellation_votes + votes;
     }
 
     /// @notice Executes a proposal by returning the new contract a GovernanceCapability.
-    public fun execute_proposal<CoinType, ProposalCapabilityType>(
+    public fun execute_proposal<CoinType, ProposalCapabilityType: drop>(
         forum_address: address,
-        proposal_capacility: ProposalCapabilityType,
+        _proposal_capability: ProposalCapabilityType,
         ctx: &mut TxContext
     ): GovernanceCapability<CoinType> acquires Forum, Proposal {
         // Get proposal and forum

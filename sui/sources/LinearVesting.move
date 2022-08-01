@@ -12,7 +12,7 @@ module Movemate::LinearVesting {
     use std::vector;
 
     use sui::coin::{Self, Coin};
-    use sui::tx_context;
+    use sui::tx_context::{Self, TxContext};
     use sui::vec_map::{Self, VecMap};
 
     struct WalletInfo has store {
@@ -117,13 +117,15 @@ module Movemate::LinearVesting {
         // Release amount
         let releasable = vested_amount(wallet_info.start, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, tx_context::epoch(ctx)) - coin_store.released;
         *&mut coin_store.released = *&coin_store.released + releasable;
-        coin::split_and_transfer<T>(&mut coin_store.coin, releasable, beneficiary, ctx);
+        coin::split_and_transfer<T>(&mut coin_store.coin, releasable, copy beneficiary, ctx);
 
         // Validate clawback
         assert!(wallet_info.can_clawback, 1000);
 
         // Execute clawback
-        coin::split_and_transfer<T>(&mut coin_store.coin, coin::value(&coin_store.coin), admin_address, ctx);
+        let coin_out = &mut coin_store.coin;
+        let value = coin::value(coin_out);
+        coin::split_and_transfer<T>(coin_out, value, admin_address, ctx);
     }
 
     /// Calculates the amount that has already vested. Default implementation is a linear vesting curve.

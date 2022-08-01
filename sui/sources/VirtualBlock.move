@@ -13,7 +13,7 @@ module Movemate::VirtualBlock {
     use Movemate::CritBit::{Self, CB};
 
     /// @notice Struct for a virtual block with entries sorted by bids.
-    struct Mempool<BidAssetType, EntryType> {
+    struct Mempool<phantom BidAssetType, EntryType> {
         blocks: vector<CB<vector<EntryType>>>,
         current_block_bids: Coin<BidAssetType>,
         last_block_timestamp: u64,
@@ -36,18 +36,20 @@ module Movemate::VirtualBlock {
 
     /// @notice Extracts all fees accrued by a mempool.
     public fun extract_mempool_fees<BidAssetType, EntryType>(mempool: &mut Mempool<BidAssetType, EntryType>, ctx: &mut TxContext): Coin<BidAssetType> {
-        coin::take(coin::balance_mut(&mut mempool.mempool_fees), coin::value(&mempool.mempool_fees), ctx)
+        let value = coin::value(&mempool.mempool_fees);
+        coin::take(coin::balance_mut(&mut mempool.mempool_fees), value, ctx)
     }
 
     /// @notice Adds an entry to the latest virtual block.
     public fun add_entry<BidAssetType, EntryType>(mempool: &mut Mempool<BidAssetType, EntryType>, entry: EntryType, bid: Coin<BidAssetType>) {
         // Add bid to block
+        let bid_value = (coin::value(&bid) as u128);
         coin::join(&mut mempool.current_block_bids, bid);
 
         // Add entry to tree
-        let block = vector::borrow_mut(&mut mempool.blocks, vector::length(&mempool.blocks) - 1);
-        let bid_value = (coin::value(&bid) as u128);
-        if (CritBit::has_key(block, bid_value)) vector::push_back(CritBit::borrow_mut(block, bid_value), entry);
+        let len = vector::length(&mempool.blocks);
+        let block = vector::borrow_mut(&mut mempool.blocks, len - 1);
+        if (CritBit::has_key(block, bid_value)) vector::push_back(CritBit::borrow_mut(block, bid_value), entry)
         else CritBit::insert(block, bid_value, vector::singleton(entry));
     }
 
@@ -62,7 +64,8 @@ module Movemate::VirtualBlock {
         coin::split_and_transfer(&mut mempool.current_block_bids, miner_fee, miner, ctx);
 
         // Send the rest to the mempool admin
-        coin::join(&mut mempool.mempool_fees, coin::take(coin::balance_mut(&mut mempool.current_block_bids), coin::value(&mempool.current_block_bids), ctx));
+        let remaining = coin::value(&mempool.current_block_bids);
+        coin::join(&mut mempool.mempool_fees, coin::take(coin::balance_mut(&mut mempool.current_block_bids), remaining, ctx));
 
         // Get last block
         let last_block = vector::pop_back(&mut mempool.blocks);

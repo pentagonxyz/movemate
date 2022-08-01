@@ -11,7 +11,7 @@ module Movemate::Vectors {
     /// repeated elements.
     public fun find_upper_bound(vec: &vector<u64>, element: u64): u64 {
         if (vector::length(vec) == 0) {
-            return 0;
+            return 0
         };
 
         let low = 0;

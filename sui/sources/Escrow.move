@@ -20,11 +20,14 @@ module Movemate::Escrow {
     /// @dev Stores the sent amount as credit to be withdrawn.
     /// @param payee The destination address of the funds.
     public entry fun deposit<T>(payer: &signer, payee: address, coin_in: Coin<T>) acquires Escrow {
-        let payer_address = Signer::address_of(payer);
+        let payer_address = signer::address_of(payer);
         if (!exists<Escrow<T>>(payer_address)) move_to(payer, Escrow<T> { coins: vec_map::empty() });
         let coins = &mut borrow_global_mut<Escrow<T>>(payer_address).coins;
-        if (vec_map::contains(coins, &payee)) coin::join(&mut coin_in, vec_map::remove(coins, &payee));
-        vec_map::insert(coins, &payee, coin_in);
+        if (vec_map::contains(coins, &payee)) {
+            let (_, old_coin) = vec_map::remove<address, Coin<T>>(coins, &payee);
+            coin::join(&mut coin_in, old_coin);
+        };
+        vec_map::insert(coins, payee, coin_in);
     }
 
     /// @dev Withdraw accumulated balance for a payee, forwarding all gas to the
@@ -33,6 +36,7 @@ module Movemate::Escrow {
     public entry fun withdraw<T>(payer: &signer, payee: address) acquires Escrow {
         let payer_address = signer::address_of(payer);
         let coins = &mut borrow_global_mut<Escrow<T>>(payer_address).coins;
-        coin::transfer(vec_map::remove(&mut coins, &payee), payee);
+        let (_, coin_out) = vec_map::remove(coins, &payee);
+        coin::transfer(coin_out, payee);
     }
 }
