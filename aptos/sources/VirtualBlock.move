@@ -13,7 +13,7 @@ module Movemate::VirtualBlock {
     use Movemate::CritBit::{Self, CB};
 
     /// @notice Struct for a virtual block with entries sorted by bids.
-    struct Mempool<BidAssetType, EntryType> {
+    struct Mempool<phantom BidAssetType, EntryType> {
         blocks: vector<CB<vector<EntryType>>>,
         current_block_bids: Coin<BidAssetType>,
         last_block_timestamp: u64,
@@ -42,12 +42,12 @@ module Movemate::VirtualBlock {
     /// @notice Adds an entry to the latest virtual block.
     public fun add_entry<BidAssetType, EntryType>(mempool: &mut Mempool<BidAssetType, EntryType>, entry: EntryType, bid: Coin<BidAssetType>) {
         // Add bid to block
+        let bid_value = (Coin::value(&bid) as u128);
         Coin::merge(&mut mempool.current_block_bids, bid);
 
         // Add entry to tree
         let block = Vector::borrow_mut(&mut mempool.blocks, Vector::length(&mempool.blocks) - 1);
-        let bid_value = (Coin::value(&bid) as u128);
-        if (CritBit::has_key(block, bid_value)) Vector::push_back(CritBit::borrow_mut(block, bid_value), entry);
+        if (CritBit::has_key(block, bid_value)) Vector::push_back(CritBit::borrow_mut(block, bid_value), entry)
         else CritBit::insert(block, bid_value, Vector::singleton(entry));
     }
 
