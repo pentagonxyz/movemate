@@ -40,7 +40,7 @@ module Movemate::Governance {
         forum_address: address
     }
 
-    struct Delegate has key {
+    struct Delegate<phantom CoinType> has key {
         delegatee: address
     }
 
@@ -49,7 +49,7 @@ module Movemate::Governance {
         from_timestamp: u64
     }
 
-    struct Checkpoints has key {
+    struct Checkpoints<phantom CoinType> has key {
         checkpoints: vector<Checkpoint>
     }
 
@@ -97,14 +97,14 @@ module Movemate::Governance {
         };
 
         // Update checkpoints
-        write_checkpoint(borrow_global<Delegate>(sender).delegatee, false, amount);
+        write_checkpoint<CoinType>(borrow_global<Delegate<CoinType>>(sender).delegatee, false, amount);
     }
 
     /// @dev Unlock coins locked for voting.
     public entry fun unlock_coins<CoinType>(account: &signer, amount: u64) acquires CoinStore, Checkpoints, Delegate {
         // Update checkpoints
         let sender = Signer::address_of(account);
-        write_checkpoint(borrow_global<Delegate>(sender).delegatee, true, amount);
+        write_checkpoint<CoinType>(borrow_global<Delegate<CoinType>>(sender).delegatee, true, amount);
 
         // Move coin out
         Coin::deposit(sender, Coin::extract(&mut borrow_global_mut<CoinStore<CoinType>>(sender).coin, amount));
@@ -199,13 +199,13 @@ module Movemate::Governance {
     }
 
     /// @dev Get the address `account` is currently delegating to.
-    public fun delegates(account: address): address acquires Delegate {
-        borrow_global<Delegate>(account).delegatee
+    public fun delegates<CoinType>(account: address): address acquires Delegate {
+        borrow_global<Delegate<CoinType>>(account).delegatee
     }
 
     /// @dev Gets the current votes balance for `account`
-    public fun get_votes(account: address): u64 acquires Checkpoints {
-        let checkpoints = &borrow_global<Checkpoints>(account).checkpoints;
+    public fun get_votes<CoinType>(account: address): u64 acquires Checkpoints {
+        let checkpoints = &borrow_global<Checkpoints<CoinType>>(account).checkpoints;
         let pos = Vector::length(checkpoints);
         if (pos == 0) 0 else Vector::borrow(checkpoints, pos - 1).votes
     }
@@ -213,14 +213,14 @@ module Movemate::Governance {
     /// @dev Retrieve the number of votes for `account` at the end of `blockNumber`.
     /// Requirements:
     /// - `timestamp` must have already happened
-    public fun get_past_votes(account: address, timestamp: u64): u64 acquires Checkpoints {
+    public fun get_past_votes<CoinType>(account: address, timestamp: u64): u64 acquires Checkpoints {
         assert!(timestamp < Timestamp::now_seconds(), 1000);
-        checkpoints_lookup(account, timestamp)
+        checkpoints_lookup<CoinType>(account, timestamp)
     }
 
     /// @dev Lookup a value in a list of (sorted) checkpoints.
-    fun checkpoints_lookup(account: address, timestamp: u64): u64 acquires Checkpoints {
-        let ckpts = &borrow_global<Checkpoints>(account).checkpoints;
+    fun checkpoints_lookup<CoinType>(account: address, timestamp: u64): u64 acquires Checkpoints {
+        let ckpts = &borrow_global<Checkpoints<CoinType>>(account).checkpoints;
 
         // We run a binary search to look for the earliest checkpoint taken after `blockNumber`.
         //
@@ -254,14 +254,14 @@ module Movemate::Governance {
         let delegator_address = Signer::address_of(delegator);
         let delegator_balance = Coin::value(&borrow_global<CoinStore<CoinType>>(delegator_address).coin);
         
-        if (exists<Delegate>(delegator_address)) {
+        if (exists<Delegate<CoinType>>(delegator_address)) {
             // Update delegatee (removing old delegatee's votes)
-            let delegate_ref = &mut borrow_global_mut<Delegate>(delegator_address).delegatee;
+            let delegate_ref = &mut borrow_global_mut<Delegate<CoinType>>(delegator_address).delegatee;
             write_checkpoint(*delegate_ref, true, delegator_balance);
             *delegate_ref = delegatee;
         } else {
             // Add delegatee
-            move_to(delegator, Delegate { delegatee });
+            move_to(delegator, Delegate<CoinType> { delegatee });
         };
 
         // Add votes to new delegatee
@@ -269,8 +269,8 @@ module Movemate::Governance {
     }
 
     /// @dev Internal function to add a votes checkpoint.
-    fun write_checkpoint(account: address, subtract_not_add: bool, delta: u64): (u64, u64) acquires Checkpoints {
-        let ckpts = &mut borrow_global_mut<Checkpoints>(account).checkpoints;
+    fun write_checkpoint<CoinType>(account: address, subtract_not_add: bool, delta: u64): (u64, u64) acquires Checkpoints {
+        let ckpts = &mut borrow_global_mut<Checkpoints<CoinType>>(account).checkpoints;
 
         let pos = Vector::length(ckpts);
         let last_ckpt = Vector::borrow_mut(ckpts, pos - 1);
