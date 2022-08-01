@@ -2,18 +2,22 @@
 // Based on: OpenZeppelin Contracts
 
 /// @title Governance
-/// @notice On-chain governance. In your existing contracts, give on-chain access control to your contracts by requiring the use of a `GovernanceCapability<CoinType>` with `verify_governance_capability<CoinType>(governance_capability: &GovernanceCapability<CoinType>, forum_address: address)`
+/// @notice On-chain governance. In your existing contracts, give on-chain access control to your contracts by requiring usage of your forum's signer (represented by its `SignerCapability`).
 /// Then, when it's time to upgrade, create a governance proposal from your new module that calls `create_proposal<CoinType, ProposalCapabilityType>()`.
 /// Tokenholders call `cast_vote<CoinType, ProposalCapabilityType>()` to cast votes.
-/// When the proposal passes, call `execute_proposal<CoinType, ProposalCapabilityType>()` to retrieve a copy of the `GovernanceCapability<CoinType>`.
+/// When the proposal passes, call `execute_proposal<CoinType, ProposalCapabilityType>()` to retrieve the forum's `signer`.
 module Movemate::Governance {
     use Std::ASCII::String;
     use Std::Signer;
     use Std::Vector;
 
+    use AptosFramework::Account;
+    use AptosFramework::BCS;
     use AptosFramework::Coin::{Self, Coin};
     use AptosFramework::Table::{Self, Table};
     use AptosFramework::Timestamp;
+    use AptosFramework::TransactionContext;
+    use AptosFramework::TypeInfo;
 
     use Movemate::Math;
 
@@ -24,21 +28,20 @@ module Movemate::Governance {
         execution_window: u64,
         proposal_threshold: u64,
         approval_threshold: u64,
-        cancellation_threshold: u64
+        cancellation_threshold: u64,
+        proposals: vector<Proposal>,
+        signer_capability: Account::SignerCapability
     }
 
-    struct Proposal<phantom CoinType, phantom ProposalCapability> has key {
+    struct Proposal has store {
         name: String,
         metadata: vector<u8>,
         votes: Table<address, bool>,
         approval_votes: u64,
         cancellation_votes: u64,
         timestamp: u64,
+        script_hash: vector<u8>,
         executed: bool
-    }
-
-    struct GovernanceCapability<phantom CoinType> has drop {
-        forum_address: address
     }
 
     struct Delegate<phantom CoinType> has key {
@@ -58,11 +61,6 @@ module Movemate::Governance {
         coin: Coin<CoinType>
     }
 
-    /// @notice Checks if a governance capability matches the forum address. For use in an existing contract.
-    public fun verify_governance_capability<CoinType>(governance_capability: &GovernanceCapability<CoinType>, forum_address: address): bool {
-        governance_capability.forum_address == forum_address
-    }
-
     /// @notice Initiate a new forum under the signer provided.
     public entry fun init_forum<CoinType>(
         forum: &signer,
@@ -74,6 +72,8 @@ module Movemate::Governance {
         approval_threshold: u64,
         cancellation_threshold: u64
     ) {
+        let type_info = TypeInfo::type_of<CoinType>();
+        let (sig, sig_cap) = Account::create_resource_account(forum, b"Movemate::Governance::Forum<" + BCS::to_bytes(TypeInfo::account_address(type_info)) + b"::" + TypeInfo::module_name(type_info) + b"::" + TypeInfo::struct_name(type_info) + b">");
         move_to(forum, Forum<CoinType> {
             voting_delay,
             voting_period,
@@ -81,7 +81,9 @@ module Movemate::Governance {
             execution_window,
             proposal_threshold,
             approval_threshold,
-            cancellation_threshold
+            cancellation_threshold,
+            proposals: vector::empty(),
+            signer_capability: sig_cap
         });
     }
 
@@ -111,43 +113,42 @@ module Movemate::Governance {
         Coin::deposit(sender, Coin::extract(&mut borrow_global_mut<CoinStore<CoinType>>(sender).coin, amount));
     }
 
-    /// @notice Create a new proposal, requiring the use of ProposalCapabilityType to execute it.
-    public fun create_proposal<CoinType, ProposalCapabilityType>(
-        forum: &signer,
+    /// @notice Create a new proposal to allow a certain script hash to retrieve the signer.
+    public entry fun create_proposal<CoinType>(
+        forum_address: address,
         proposer: &signer,
-        proposal_capability: &ProposalCapabilityType,
+        script_hash: vector<u8>,
         name: String,
         metadata: vector<u8>,
     ) acquires Forum, Checkpoints {
         // Validate !exists and proposer votes >= proposer threshold
-        let forum_address = Signer::address_of(forum);
-        assert!(!exists<Proposal<CoinType, ProposalCapabilityType>>(forum_address), 1000);
         let proposer_address = Signer::address_of(proposer);
-        let proposer_votes = get_votes(proposer_address);
-        let forum_res = borrow_global<Forum<CoinType>>(forum_address);
+        let proposer_votes = get_votes<CoinType>(proposer_address);
+        let forum_res = borrow_global_mut<Forum<CoinType>>(forum_address);
         assert!(proposer_votes >= forum_res.proposal_threshold, 1000);
 
         // Add proposal to forum
-        move_to(forum, Proposal<CoinType, ProposalCapabilityType> {
+        Vector::push_back(&mut forum_res.proposals, Proposal {
             name,
             metadata,
             votes: Table::new(),
             approval_votes: 0,
             cancellation_votes: 0,
-            timestamp: Timestamp::now_seconds()
             timestamp: Timestamp::now_seconds(),
+            script_hash,
             executed: false
         });
     }
 
-    public entry fun cast_vote<CoinType, ProposalCapabilityType>(
+    public entry fun cast_vote<CoinType>(
         account: &signer,
         forum_address: address,
+        proposal_id: u64,
         vote: bool
-    ) acquires Forum, Proposal, Checkpoints {
+    ) acquires Forum, Checkpoints {
         // Get proposal and forum
-        let proposal = borrow_global_mut<Proposal<CoinType, ProposalCapabilityType>>(forum_address);
-        let forum_res = borrow_global<Forum<CoinType>>(forum_address);
+        let forum_res = borrow_global_mut<Forum<CoinType>>(forum_address);
+        let proposal = Vector::borrow_mut(&mut forum_res.proposals, proposal_id);
 
         // Check timestamps
         let voting_start = proposal.timestamp + forum_res.voting_delay;
@@ -173,14 +174,14 @@ module Movemate::Governance {
         else *&mut proposal.cancellation_votes = *&proposal.cancellation_votes + votes;
     }
 
-    /// @notice Executes a proposal by returning the new contract a GovernanceCapability.
-    public fun execute_proposal<CoinType, ProposalCapabilityType>(
+    /// @notice Executes a proposal by returning the new module the governance signer.
+    public fun execute_proposal<CoinType>(
         forum_address: address,
-        proposal_capacility: ProposalCapabilityType
-    ): GovernanceCapability<CoinType> acquires Forum, Proposal {
+        proposal_id: u64
+    ): signer acquires Forum {
         // Get proposal and forum
-        let proposal = borrow_global_mut<Proposal<CoinType, ProposalCapabilityType>>(forum_address);
-        let forum_res = borrow_global<Forum<CoinType>>(forum_address);
+        let forum_res = borrow_global_mut<Forum<CoinType>>(forum_address);
+        let proposal = Vector::borrow_mut(&mut forum_res.proposals, proposal_id);
 
         // Check timestamps
         let post_queue = proposal.timestamp + forum_res.voting_delay + forum_res.voting_period + forum_res.queue_period;
@@ -189,6 +190,7 @@ module Movemate::Governance {
         let expiration = post_queue + forum_res.execution_window;
         assert!(now < expiration, 1000);
         assert!(!proposal.executed, 1000);
+        assert!(TransactionContext::get_script_hash() == proposal.script_hash, 1000);
 
         // Check votes
         assert!(proposal.approval_votes >= forum_res.approval_threshold, 1000);
@@ -197,8 +199,8 @@ module Movemate::Governance {
         // Set proposal as executed
         *&mut proposal.executed = true;
 
-        // Return GovernanceCapability with forum address
-        GovernanceCapability<CoinType> { forum_address }
+        // Return signer
+        Account::get_signer_with_capability(&forum_res.signer_capability)
     }
 
     /// @dev Get the address `account` is currently delegating to.
