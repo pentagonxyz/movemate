@@ -26,14 +26,14 @@ module movemate::linear_vesting {
     }
 
     /// @dev Set the beneficiary, start timestamp and vesting duration of the vesting wallet.
-    public entry fun init_wallet<T>(beneficiary: address, start_timestamp: u64, duration_seconds: u64, clawbacker: Option<address>, ctx: &mut TxContext) {
+    public entry fun init_wallet<T>(beneficiary: address, start: u64, duration: u64, clawbacker: Option<address>, ctx: &mut TxContext) {
         transfer::share_object(Wallet<T> {
             info: object::new(ctx),
             beneficiary,
             coin: coin::zero<T>(ctx),
             released: 0,
-            start: start_timestamp,
-            duration: duration_seconds,
+            start,
+            duration,
             clawbacker
         });
     }
