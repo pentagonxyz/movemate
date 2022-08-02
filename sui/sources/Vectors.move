@@ -1,7 +1,7 @@
-module Movemate::Vectors {
+module movemate::vectors {
     use std::vector;
 
-    use Movemate::Math;
+    use movemate::math;
 
     /// @dev Searches a sorted `vec` and returns the first index that contains
     /// a value greater or equal to `element`. If no such index exists (i.e. all
@@ -18,7 +18,7 @@ module Movemate::Vectors {
         let high = vector::length(vec);
 
         while (low < high) {
-            let mid = Math::average(low, high);
+            let mid = math::average(low, high);
 
             // Note that mid will always be strictly less than high (i.e. it will be a valid vector index)
             // because Math::average rounds down (it does integer division with truncation).
