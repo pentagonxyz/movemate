@@ -7,7 +7,7 @@
 /// Any token transferred to this contract will follow the vesting schedule as if they were locked from the beginning.
 /// Consequently, if the vesting has already started, any amount of tokens sent to this contract will (at least partly)
 /// be immediately releasable.
-module Movemate::LinearVesting {
+module movemate::LinearVesting {
     use std::option::{Self, Option};
 
     use sui::coin::{Self, Coin};

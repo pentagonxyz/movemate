@@ -4,13 +4,13 @@
 /// @dev This module allows the creation of virtual blocks with transactions sorted by fees, turning transaction latency auctions into fee auctions.
 /// Once you've created a new mempool (specifying a miner fee rate and a block time/delay), simply add entries to the block,
 /// mine the entries (for a miner fee), and repeat. Extract mempool fees as necessary.
-module Movemate::VirtualBlock {
+module movemate::VirtualBlock {
     use std::vector;
 
     use sui::coin::{Self, Coin};
     use sui::tx_context::{Self, TxContext};
 
-    use Movemate::CritBit::{Self, CB};
+    use movemate::CritBit::{Self, CB};
 
     /// @notice Struct for a virtual block with entries sorted by bids.
     struct Mempool<phantom BidAssetType, EntryType> {

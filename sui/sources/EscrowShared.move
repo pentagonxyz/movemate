@@ -2,7 +2,7 @@
 
 /// @title EscrowShared
 /// @dev Basic escrow module with refunds and an arbitrator: holds an object designated for a recipient until the sender approves withdrawal, the recipient refunds the sender, or the arbitrator does one of the two.
-module Movemate::EscrowShared {
+module movemate::EscrowShared {
     use std::option::{Self, Option};
     use sui::object::{Self, Info};
     use sui::transfer;

@@ -2,7 +2,7 @@
 
 /// @title Math
 /// @dev Standard math utilities missing in the Move language (for `u64`).
-module Movemate::Math {
+module movemate::Math {
     const ROUNDING_DOWN: u8 = 0; // Toward negative infinity
     const ROUNDING_UP: u8 = 0; // Toward infinity
     const ROUNDING_ZERO: u8 = 0; // Toward zero

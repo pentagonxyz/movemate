@@ -1,7 +1,7 @@
-module Movemate::Vectors {
+module movemate::Vectors {
     use std::vector;
 
-    use Movemate::Math;
+    use movemate::Math;
 
     /// @dev Searches a sorted `vec` and returns the first index that contains
     /// a value greater or equal to `element`. If no such index exists (i.e. all
