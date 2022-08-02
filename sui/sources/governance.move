@@ -6,8 +6,7 @@
 /// Tokenholders call `cast_vote<CoinType, ProposalCapabilityType>()` to cast votes.
 /// When the proposal passes, call `execute_proposal<CoinType, ProposalCapabilityType>()` to retrieve a copy of the `GovernanceCapability<CoinType>`.
 module movemate::governance {
-    use std::ascii::String;
-    use std::signer;
+    use std::ascii::{Self, String};
     use std::vector;
 
     use sui::coin::{Self, Coin};
@@ -148,14 +147,13 @@ module movemate::governance {
     /// @notice Create a new proposal, requiring the use of ProposalCapabilityType to execute it.
     public entry fun create_proposal<CoinType, ProposalCapabilityType>(
         forum: &Forum<CoinType>,
-        proposer: &signer,
-        name: String,
+        name: vector<u8>,
         metadata: vector<u8>,
         voter: &Delegate<CoinType>,
         ctx: &mut TxContext
     ) {
         // Validate !exists and proposer votes >= proposer threshold
-        let proposer_address = signer::address_of(proposer);
+        let proposer_address = tx_context::sender(ctx);
         assert!(proposer_address == voter.delegatee, 1000);
         let proposer_votes = get_votes(voter);
         assert!(proposer_votes >= forum.proposal_threshold, 1000);
@@ -164,7 +162,7 @@ module movemate::governance {
         transfer::share_object(Proposal<ProposalCapabilityType> {
             info: object::new(ctx),
             forum_id: *object::info_id(&forum.info),
-            name,
+            name: ascii::string(name),
             metadata,
             votes: vec_map::empty(),
             approval_votes: 0,
@@ -177,7 +175,6 @@ module movemate::governance {
     public entry fun cast_vote<CoinType, ProposalCapabilityType>(
         forum: &Forum<CoinType>,
         proposal: &mut Proposal<ProposalCapabilityType>,
-        account: &signer,
         vote: bool,
         voter: &Delegate<CoinType>,
         ctx: &mut TxContext
@@ -190,7 +187,7 @@ module movemate::governance {
         assert!(now < voting_start + forum.voting_period, 1000);
 
         // Get past votes
-        let sender = signer::address_of(account);
+        let sender = tx_context::sender(ctx);
         assert!(sender == voter.delegatee, 1000);
         let votes = get_past_votes(voter, voting_start, ctx);
 
