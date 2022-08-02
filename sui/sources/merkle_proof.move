@@ -10,11 +10,11 @@
 /// hashing, or use a hash function other than keccak256 for hashing leaves.
 /// This is because the concatenation of a sorted pair of internal nodes in
 /// the merkle tree could be reinterpreted as a leaf value.
-module movemate::MerkleProof {
+module movemate::merkle_proof {
     use std::hash;
     use std::vector;
 
-    use movemate::Vectors;
+    use movemate::vectors;
 
     /// @dev Returns true if a `leaf` can be proved to be a part of a Merkle tree
     /// defined by `root`. For this, a `proof` must be provided, containing
@@ -126,7 +126,7 @@ module movemate::MerkleProof {
     }
 
     fun hash_pair(a: vector<u8>, b: vector<u8>): vector<u8> {
-        if (Vectors::lt(&a, &b)) efficient_hash(a, b) else efficient_hash(b, a)
+        if (vectors::lt(&a, &b)) efficient_hash(a, b) else efficient_hash(b, a)
     }
 
     fun efficient_hash(a: vector<u8>, b: vector<u8>): vector<u8> {

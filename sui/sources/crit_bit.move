@@ -401,7 +401,7 @@
 ///
 /// ---
 ///
-module Movemate::CritBit {
+module movemate::crit_bit {
     use std::vector::{
         borrow as v_b,
         borrow_mut as v_b_m,

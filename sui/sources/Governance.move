@@ -5,7 +5,7 @@
 /// Then, when it's time to upgrade, create a governance proposal from your new module that calls `create_proposal<CoinType, ProposalCapabilityType>()`.
 /// Tokenholders call `cast_vote<CoinType, ProposalCapabilityType>()` to cast votes.
 /// When the proposal passes, call `execute_proposal<CoinType, ProposalCapabilityType>()` to retrieve a copy of the `GovernanceCapability<CoinType>`.
-module movemate::Governance {
+module movemate::governance {
     use std::ascii::String;
     use std::signer;
     use std::vector;
@@ -16,7 +16,7 @@ module movemate::Governance {
     use sui::tx_context::{Self, TxContext};
     use sui::vec_map::{Self, VecMap};
 
-    use movemate::Math;
+    use movemate::math;
 
     struct Forum<phantom CoinType> has key {
         info: Info,
@@ -274,7 +274,7 @@ module movemate::Governance {
         let low = 0;
 
         while (low < high) {
-            let mid = Math::average(low, high);
+            let mid = math::average(low, high);
             if (vector::borrow(ckpts, mid).from_timestamp > timestamp) {
                 high = mid;
             } else {

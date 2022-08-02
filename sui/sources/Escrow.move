@@ -2,7 +2,7 @@
 
 /// @title Escrow
 /// @dev Basic escrow module: holds an object designated for a recipient until the sender approves withdrawal.
-module movemate::Escrow {
+module movemate::escrow {
     use sui::object::{Self, Info};
     use sui::transfer;
     use sui::tx_context::TxContext;
