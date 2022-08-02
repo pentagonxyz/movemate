@@ -73,7 +73,14 @@ module Movemate::Governance {
         cancellation_threshold: u64
     ) {
         let type_info = TypeInfo::type_of<CoinType>();
-        let (sig, sig_cap) = Account::create_resource_account(forum, b"Movemate::Governance::Forum<" + BCS::to_bytes(TypeInfo::account_address(type_info)) + b"::" + TypeInfo::module_name(type_info) + b"::" + TypeInfo::struct_name(type_info) + b">");
+        let seed = b"Movemate::Governance::Forum<";
+        Vector::append(&mut seed, BCS::to_bytes(&TypeInfo::account_address(&type_info)));
+        Vector::append(&mut seed, b"::");
+        Vector::append(&mut seed, TypeInfo::module_name(&type_info));
+        Vector::append(&mut seed, b"::");
+        Vector::append(&mut seed, TypeInfo::struct_name(&type_info));
+        Vector::append(&mut seed, b">");
+        let (sig, sig_cap) = Account::create_resource_account(forum, seed);
         move_to(forum, Forum<CoinType> {
             voting_delay,
             voting_period,
@@ -82,7 +89,7 @@ module Movemate::Governance {
             proposal_threshold,
             approval_threshold,
             cancellation_threshold,
-            proposals: vector::empty(),
+            proposals: Vector::empty(),
             signer_capability: sig_cap
         });
     }
@@ -200,7 +207,7 @@ module Movemate::Governance {
         *&mut proposal.executed = true;
 
         // Return signer
-        Account::get_signer_with_capability(&forum_res.signer_capability)
+        Account::create_signer_with_capability(&forum_res.signer_capability)
     }
 
     /// @dev Get the address `account` is currently delegating to.

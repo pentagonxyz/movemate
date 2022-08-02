@@ -46,7 +46,8 @@ module Movemate::VirtualBlock {
         Coin::merge(&mut mempool.current_block_bids, bid);
 
         // Add entry to tree
-        let block = Vector::borrow_mut(&mut mempool.blocks, Vector::length(&mempool.blocks) - 1);
+        let len = Vector::length(&mempool.blocks);
+        let block = Vector::borrow_mut(&mut mempool.blocks, len - 1);
         if (CritBit::has_key(block, bid_value)) Vector::push_back(CritBit::borrow_mut(block, bid_value), entry)
         else CritBit::insert(block, bid_value, Vector::singleton(entry));
     }
