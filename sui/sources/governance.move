@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-/// @title Governance
+/// @title governance
 /// @notice On-chain governance. In your existing contracts, give on-chain access control to your contracts by requiring the use of a `GovernanceCapability<CoinType>` with `verify_governance_capability<CoinType>(governance_capability: &GovernanceCapability<CoinType>, forum_address: address)`
 /// Then, when it's time to upgrade, create a governance proposal from your new module that calls `create_proposal<CoinType, ProposalCapabilityType>()`.
 /// Tokenholders call `cast_vote<CoinType, ProposalCapabilityType>()` to cast votes.

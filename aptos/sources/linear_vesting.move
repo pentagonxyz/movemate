@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: MIT
 
-/// @title LinearVesting
+/// @title linear_vesting
 /// @dev This contract handles the vesting of coins for a given beneficiary. Custody of multiple coins
 /// can be given to this contract, which will release the token to the beneficiary following a given vesting schedule.
 /// The vesting schedule is customizable through the {vestedAmount} function.
 /// Any token transferred to this contract will follow the vesting schedule as if they were locked from the beginning.
 /// Consequently, if the vesting has already started, any amount of tokens sent to this contract will (at least partly)
 /// be immediately releasable.
-module Movemate::LinearVesting {
+module movemate::linear_vesting {
     use std::signer;
     use std::vector;
 
-    use aptos_framework::coin::{Self, Coin};
     use aptos_std::iterable_table::{Self, IterableTable};
     use aptos_std::table::{Self, Table};
+
+    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::timestamp;
 
     struct WalletInfo has store {

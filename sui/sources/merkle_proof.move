@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Based on: OpenZeppelin Contracts (last updated v4.7.0) (utils/cryptography/MerkleProof.sol)
 
+/// @title: merkle_proof
 /// @dev These functions deal with verification of Merkle Tree proofs.
 /// The proofs can be generated using the JavaScript library
 /// https://github.com/miguelmota/merkletreejs[merkletreejs].

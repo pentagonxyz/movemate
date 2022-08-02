@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Based on: OpenZeppelin Contracts
 
-/// @title Governance
+/// @title governance
 /// @notice On-chain governance. In your existing contracts, give on-chain access control to your contracts by requiring usage of your forum's signer (represented by its `SignerCapability`).
 /// Then, when it's time to upgrade, create a governance proposal from your new module that calls `create_proposal<CoinType, ProposalCapabilityType>()`.
 /// Tokenholders call `cast_vote<CoinType, ProposalCapabilityType>()` to cast votes.
 /// When the proposal passes, call `execute_proposal<CoinType, ProposalCapabilityType>()` to retrieve the forum's `signer`.
-module Movemate::Governance {
+module movemate::governance {
     use std::signer;
     use std::string::String;
     use std::vector;
@@ -20,7 +20,7 @@ module Movemate::Governance {
     use aptos_framework::timestamp;
     use aptos_framework::transaction_context;
 
-    use Movemate::Math;
+    use movemate::math;
 
     struct Forum<phantom CoinType> has key {
         voting_delay: u64,
@@ -250,7 +250,7 @@ module Movemate::Governance {
         let low = 0;
 
         while (low < high) {
-            let mid = Math::average(low, high);
+            let mid = math::average(low, high);
             if (vector::borrow(ckpts, mid).from_timestamp > timestamp) {
                 high = mid;
             } else {

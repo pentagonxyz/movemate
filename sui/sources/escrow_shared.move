@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-/// @title EscrowShared
+/// @title escrow_shared
 /// @dev Basic escrow module with refunds and an arbitrator: holds an object designated for a recipient until the sender approves withdrawal, the recipient refunds the sender, or the arbitrator does one of the two.
 module movemate::escrow_shared {
     use std::option::{Self, Option};

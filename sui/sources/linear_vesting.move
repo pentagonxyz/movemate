@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-/// @title LinearVesting
+/// @title linear_vesting
 /// @dev This contract handles the vesting of coins for a given beneficiary. Custody of multiple coins
 /// can be given to this contract, which will release the token to the beneficiary following a given vesting schedule.
 /// The vesting schedule is customizable through the {vestedAmount} function.

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 
-/// @title VirtualBlock
+/// @title virtual_block
 /// @dev This module allows the creation of virtual blocks with transactions sorted by fees, turning transaction latency auctions into fee auctions.
 /// Once you've created a new mempool (specifying a miner fee rate and a block time/delay), simply add entries to the block,
 /// mine the entries (for a miner fee), and repeat. Extract mempool fees as necessary.
-module Movemate::VirtualBlock {
+module movemate::virtual_block {
     use std::vector;
 
     use aptos_framework::coin::{Self, Coin};
     use aptos_framework::timestamp;
 
-    use Movemate::CritBit::{Self, CB};
+    use movemate::crit_bit::{Self, CB};
 
     /// @notice Struct for a virtual block with entries sorted by bids.
     struct Mempool<phantom BidAssetType, EntryType> {
@@ -25,7 +25,7 @@ module Movemate::VirtualBlock {
     /// @notice Creates a new mempool (specifying miner fee rate and block time/delay).
     public fun new_mempool<BidAssetType, EntryType>(miner_fee_rate: u64, block_time: u64): Mempool<BidAssetType, EntryType> {
         Mempool<BidAssetType, EntryType> {
-            blocks: vector::singleton<CB<vector<EntryType>>>(CritBit::empty<vector<EntryType>>()),
+            blocks: vector::singleton<CB<vector<EntryType>>>(crit_bit::empty<vector<EntryType>>()),
             current_block_bids: coin::zero<BidAssetType>(),
             last_block_timestamp: timestamp::now_microseconds(),
             mempool_fees: coin::zero<BidAssetType>(),
@@ -48,8 +48,8 @@ module Movemate::VirtualBlock {
         // Add entry to tree
         let len = vector::length(&mempool.blocks);
         let block = vector::borrow_mut(&mut mempool.blocks, len - 1);
-        if (CritBit::has_key(block, bid_value)) vector::push_back(CritBit::borrow_mut(block, bid_value), entry)
-        else CritBit::insert(block, bid_value, vector::singleton(entry));
+        if (crit_bit::has_key(block, bid_value)) vector::push_back(crit_bit::borrow_mut(block, bid_value), entry)
+        else crit_bit::insert(block, bid_value, vector::singleton(entry));
     }
 
     /// @notice Validates the block time and distributes fees.
@@ -69,7 +69,7 @@ module Movemate::VirtualBlock {
         let last_block = vector::pop_back(&mut mempool.blocks);
 
         // Create next block
-        vector::push_back(&mut mempool.blocks, CritBit::empty<vector<EntryType>>());
+        vector::push_back(&mut mempool.blocks, crit_bit::empty<vector<EntryType>>());
         *&mut mempool.last_block_timestamp = now;
 
         // Return entries of last block

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-/// @title Math
+/// @title math
 /// @dev Standard math utilities missing in the Move language (for `u64`).
 module movemate::math {
     const ROUNDING_DOWN: u8 = 0; // Toward negative infinity
