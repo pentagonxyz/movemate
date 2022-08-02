@@ -1,5 +1,5 @@
 module Movemate::Vectors {
-    use Std::Vector;
+    use std::vector;
 
     use Movemate::Math;
 
@@ -10,19 +10,19 @@ module Movemate::Vectors {
     /// `vec` is expected to be sorted in ascending order, and to contain no
     /// repeated elements.
     public fun find_upper_bound(vec: &vector<u64>, element: u64): u64 {
-        if (Vector::length(vec) == 0) {
-            return 0;
+        if (vector::length(vec) == 0) {
+            return 0
         };
 
         let low = 0;
-        let high = Vector::length(vec);
+        let high = vector::length(vec);
 
         while (low < high) {
             let mid = Math::average(low, high);
 
             // Note that mid will always be strictly less than high (i.e. it will be a valid vector index)
             // because Math::average rounds down (it does integer division with truncation).
-            if (*Vector::borrow(vec, mid) > element) {
+            if (*vector::borrow(vec, mid) > element) {
                 high = mid;
             } else {
                 low = mid + 1;
@@ -30,7 +30,7 @@ module Movemate::Vectors {
         };
 
         // At this point `low` is the exclusive upper bound. We will return the inclusive upper bound.
-        if (low > 0 && *Vector::borrow(vec, low - 1) == element) {
+        if (low > 0 && *vector::borrow(vec, low - 1) == element) {
             low - 1
         } else {
             low
@@ -39,13 +39,13 @@ module Movemate::Vectors {
 
     public fun lt(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
-        let len = Vector::length(a);
-        assert!(len == Vector::length(b), 10000);
+        let len = vector::length(a);
+        assert!(len == vector::length(b), 10000);
 
         loop {
             if (i >= len) break;
-            let aa = *Vector::borrow(a, i);
-            let bb = *Vector::borrow(b, i);
+            let aa = *vector::borrow(a, i);
+            let bb = *vector::borrow(b, i);
             if (aa < bb) return true;
             if (aa > bb) return false;
             i = i + 1;
@@ -56,13 +56,13 @@ module Movemate::Vectors {
 
     public fun gt(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
-        let len = Vector::length(a);
-        assert!(len == Vector::length(b), 10000);
+        let len = vector::length(a);
+        assert!(len == vector::length(b), 10000);
 
         loop {
             if (i >= len) break;
-            let aa = *Vector::borrow(a, i);
-            let bb = *Vector::borrow(b, i);
+            let aa = *vector::borrow(a, i);
+            let bb = *vector::borrow(b, i);
             if (aa > bb) return true;
             if (aa < bb) return false;
             i = i + 1;
@@ -73,13 +73,13 @@ module Movemate::Vectors {
 
     public fun lte(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
-        let len = Vector::length(a);
-        assert!(len == Vector::length(b), 10000);
+        let len = vector::length(a);
+        assert!(len == vector::length(b), 10000);
 
         loop {
             if (i >= len) break;
-            let aa = *Vector::borrow(a, i);
-            let bb = *Vector::borrow(b, i);
+            let aa = *vector::borrow(a, i);
+            let bb = *vector::borrow(b, i);
             if (aa <= bb) return true;
             if (aa > bb) return false;
             i = i + 1;
@@ -90,13 +90,13 @@ module Movemate::Vectors {
 
     public fun gte(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
-        let len = Vector::length(a);
-        assert!(len == Vector::length(b), 10000);
+        let len = vector::length(a);
+        assert!(len == vector::length(b), 10000);
 
         loop {
             if (i >= len) break;
-            let aa = *Vector::borrow(a, i);
-            let bb = *Vector::borrow(b, i);
+            let aa = *vector::borrow(a, i);
+            let bb = *vector::borrow(b, i);
             if (aa >= bb) return true;
             if (aa < bb) return false;
             i = i + 1;

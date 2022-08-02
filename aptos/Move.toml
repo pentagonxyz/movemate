@@ -4,16 +4,22 @@ version = "1.0.0"
 authors = ["David Lucid <david@pentagon.xyz>"]
 
 [addresses]
-Std = "0x1"
-AptosFramework = "0x1"
+std = "0x1"
+aptos_std = "0x1"
+aptos_framework = "0x1"
 Movemate = "0xb2207be128ba3dd1de79c064495a7c97642a513d33d4313e686c33896a332f1a"
 
 [dependencies.MoveStdlib]
 git = "https://github.com/aptos-labs/aptos-core.git"
 subdir = "aptos-move/framework/move-stdlib"
-rev = "6538efd8bf4b37c61ec0427243e864ee038df5e8"
+rev = "b718154c93b3556658c8c06341be0cf47957188c"
+
+[dependencies.AptosStdlib]
+git = "https://github.com/aptos-labs/aptos-core.git"
+subdir = "aptos-move/framework/aptos-stdlib"
+rev = "b718154c93b3556658c8c06341be0cf47957188c"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
 subdir = "aptos-move/framework/aptos-framework"
-rev = "6538efd8bf4b37c61ec0427243e864ee038df5e8"
+rev = "b718154c93b3556658c8c06341be0cf47957188c"

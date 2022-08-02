@@ -402,7 +402,7 @@
 /// ---
 ///
 module Movemate::CritBit {
-    use Std::Vector::{
+    use std::vector::{
         borrow as v_b,
         borrow_mut as v_b_m,
         destroy_empty as v_d_e,
@@ -415,7 +415,7 @@ module Movemate::CritBit {
     };
 
     #[test_only]
-    use Std::Vector::{
+    use std::vector::{
         append as v_a,
     };
 

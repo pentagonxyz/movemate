@@ -11,8 +11,8 @@
 /// This is because the concatenation of a sorted pair of internal nodes in
 /// the merkle tree could be reinterpreted as a leaf value.
 module Movemate::MerkleProof {
-    use Std::Hash;
-    use Std::Vector;
+    use std::hash;
+    use std::vector;
 
     use Movemate::Vectors;
 
@@ -34,12 +34,12 @@ module Movemate::MerkleProof {
     /// of leafs & pre-images are assumed to be sorted.
     fun process_proof(proof: &vector<vector<u8>>, leaf: vector<u8>): vector<u8> {
         let computed_hash = leaf;
-        let proof_length = Vector::length(proof);
+        let proof_length = vector::length(proof);
         let i = 0;
 
         loop {
             if (i >= proof_length) break;
-            computed_hash = hash_pair(computed_hash, *Vector::borrow(proof, i));
+            computed_hash = hash_pair(computed_hash, *vector::borrow(proof, i));
             i = i + 1;
         };
 
@@ -69,15 +69,15 @@ module Movemate::MerkleProof {
         // consuming and producing values on a queue. The queue starts with the `leaves` array, then goes onto the
         // `hashes` array. At the end of the process, the last hash in the `hashes` array should contain the root of
         // the merkle tree.
-        let leaves_len = Vector::length(leaves);
-        let total_hashes = Vector::length(proof_flags);
+        let leaves_len = vector::length(leaves);
+        let total_hashes = vector::length(proof_flags);
 
         // Check proof validity.
-        assert!(leaves_len + Vector::length(proof) - 1 == total_hashes, 1000); // MerkleProof: invalid multiproof
+        assert!(leaves_len + vector::length(proof) - 1 == total_hashes, 1000); // MerkleProof: invalid multiproof
 
         // The xxxPos values are "pointers" to the next value to consume in each array. All accesses are done using
         // `xxx[xxxPos++]`, which return the current value and increment the pointer, thus mimicking a queue's "pop".
-        let hashes = Vector::empty<vector<u8>>();
+        let hashes = vector::empty<vector<u8>>();
         let leaf_pos = 0;
         let hash_pos = 0;
         let proof_pos = 0;
@@ -93,35 +93,35 @@ module Movemate::MerkleProof {
 
             let a = if (leaf_pos < leaves_len) {
                 leaf_pos = leaf_pos + 1;
-                *Vector::borrow(leaves, leaf_pos)
+                *vector::borrow(leaves, leaf_pos)
             } else {
                 hash_pos = hash_pos + 1;
-                *Vector::borrow(&hashes, hash_pos)
+                *vector::borrow(&hashes, hash_pos)
             };
 
-            let b = if (*Vector::borrow(proof_flags, i)) {
+            let b = if (*vector::borrow(proof_flags, i)) {
                 if (leaf_pos < leaves_len) {
                     leaf_pos = leaf_pos + 1;
-                    *Vector::borrow(leaves, leaf_pos)
+                    *vector::borrow(leaves, leaf_pos)
                 } else {
                     hash_pos = hash_pos + 1;
-                    *Vector::borrow(&hashes, hash_pos)
+                    *vector::borrow(&hashes, hash_pos)
                 }
             } else {
                 proof_pos = proof_pos + 1;
-                *Vector::borrow(proof, proof_pos)
+                *vector::borrow(proof, proof_pos)
             };
 
-            Vector::push_back(&mut hashes, hash_pair(a, b));
+            vector::push_back(&mut hashes, hash_pair(a, b));
             i = i + 1;
         };
 
         if (total_hashes > 0) {
-            *Vector::borrow(&hashes, total_hashes - 1)
+            *vector::borrow(&hashes, total_hashes - 1)
         } else if (leaves_len > 0) {
-            *Vector::borrow(leaves, 0)
+            *vector::borrow(leaves, 0)
         } else {
-            *Vector::borrow(proof, 0)
+            *vector::borrow(proof, 0)
         }
     }
 
@@ -130,7 +130,7 @@ module Movemate::MerkleProof {
     }
 
     fun efficient_hash(a: vector<u8>, b: vector<u8>): vector<u8> {
-        Vector::append(&mut a, b);
-        Hash::sha2_256(a)
+        vector::append(&mut a, b);
+        hash::sha2_256(a)
     }
 }
