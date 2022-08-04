@@ -67,6 +67,19 @@ module movemate::linear_vesting {
         });
     }
 
+    /// @dev Deposits `coin_in` to a wallet.
+    public fun deposit<T>(admin: address, beneficiary: address, index: u64, coin_in: Coin<T>) acquires CoinStoreCollection {
+        let coin_stores = &mut borrow_global_mut<CoinStoreCollection<T>>(admin).wallets;
+        let collection = iterable_table::borrow_mut(coin_stores, beneficiary);
+        let coin_store = table::borrow_mut(collection, index);
+        coin::merge(&mut coin_store.coin, coin_in)
+    }
+
+    /// @dev Transfers in `amount` coins to a wallet from `depositor`.
+    public entry fun transfer_in<T>(depositor: &signer, admin: address, beneficiary: address, index: u64, amount: u64) acquires CoinStoreCollection {
+        deposit<T>(admin, beneficiary, index, coin::withdraw<T>(depositor, amount));
+    }
+
     /// @notice Returns the vesting wallet details.
     public fun wallet_info(admin: address, beneficiary: address, index: u64): (u64, u64, bool) acquires WalletInfoCollection {
         let wallet_infos = &mut borrow_global_mut<WalletInfoCollection>(admin).wallets;

@@ -38,6 +38,11 @@ module movemate::linear_vesting {
         });
     }
 
+    /// @dev Deposits `coin_in` to `wallet`.
+    public fun deposit<T>(wallet: &mut Wallet<T>, coin_in: Coin<T>) {
+        coin::join(&mut wallet.coin, coin_in)
+    }
+
     /// @notice Returns the vesting wallet details.
     public fun wallet_info<T>(wallet: &mut Wallet<T>): (address, u64, u64, u64, u64, Option<address>) {
         (wallet.beneficiary, coin::value(&wallet.coin), wallet.released, wallet.start, wallet.duration, wallet.clawbacker)
