@@ -79,6 +79,12 @@ module movemate::linear_vesting {
         coin::split_and_transfer<T>(coin_out, value, sender, ctx);
     }
 
+    /// @dev Returns (1) the amount that has vested at the current time and the (2) portion of that amount that has not yet been released.
+    public fun vesting_status<T>(wallet: &Wallet<T>, ctx: &mut TxContext): (u64, u64) {
+        let vested = vested_amount(wallet.start, wallet.duration, coin::value(&wallet.coin), wallet.released, tx_context::epoch(ctx));
+        (vested, vested - wallet.released)
+    }
+
     /// Calculates the amount that has already vested. Default implementation is a linear vesting curve.
     fun vested_amount(start: u64, duration: u64, balance: u64, already_released: u64, timestamp: u64): u64 {
         vesting_schedule(start, duration, balance + already_released, timestamp)

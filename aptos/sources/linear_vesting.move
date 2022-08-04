@@ -148,7 +148,24 @@ module movemate::linear_vesting {
         coin::deposit<T>(admin_address, clawback_coin);
     }
 
-    /// Calculates the amount that has already vested. Default implementation is a linear vesting curve.
+    /// @dev Returns (1) the amount that has vested at the current time and the (2) portion of that amount that has not yet been released.
+    public fun vesting_status<T>(admin: address, beneficiary: address, index: u64): (u64, u64) acquires WalletInfoCollection, CoinStoreCollection {
+        // Get wallet info
+        let wallet_infos = &borrow_global<WalletInfoCollection>(admin).wallets;
+        let collection = iterable_table::borrow(wallet_infos, beneficiary);
+        let wallet_info = vector::borrow(collection, index);
+
+        // Get coin store
+        let coin_stores = &borrow_global<CoinStoreCollection<T>>(admin).wallets;
+        let collection = iterable_table::borrow(coin_stores, beneficiary);
+        let coin_store = table::borrow(collection, index);
+
+        // Return vested amount
+        let vested = vested_amount(wallet_info.start, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, timestamp::now_seconds());
+        (vested, vested - coin_store.released)
+    }
+
+    /// @dev Calculates the amount that has already vested. Default implementation is a linear vesting curve.
     fun vested_amount(start: u64, duration: u64, balance: u64, already_released: u64, timestamp: u64): u64 {
         vesting_schedule(start, duration, balance + already_released, timestamp)
     }
