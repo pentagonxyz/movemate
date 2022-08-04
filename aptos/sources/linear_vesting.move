@@ -176,4 +176,102 @@ module movemate::linear_vesting {
         if (timestamp > start + duration) return total_allocation;
         (total_allocation * (timestamp - start)) / duration
     }
+
+    #[test_only]
+    struct FakeMoney { }
+
+    #[test_only]
+    struct FakeMoneyCapabilities has key {
+        mint_cap: coin::MintCapability<FakeMoney>,
+        burn_cap: coin::BurnCapability<FakeMoney>,
+    }
+    
+    #[test_only]
+    fun fast_forward_seconds(timestamp_seconds: u64) {
+        timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
+    }
+
+    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @0x1002)]
+    public entry fun test_end_to_end(admin: signer, beneficiary: signer, coin_creator: signer) acquires WalletInfoCollection, CoinStoreCollection {
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+        let coin_in = coin::mint<FakeMoney>(1234567890, &mint_cap);
+
+        // init wallet and asset
+        let beneficiary_address = signer::address_of(&beneficiary);
+        init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, true);
+        init_asset<FakeMoney>(&admin);
+        let admin_address = signer::address_of(&admin);
+        deposit<FakeMoney>(admin_address, beneficiary_address, 0, coin_in);
+
+        // fast forward and release
+        fast_forward_seconds(3600);
+        coin::register_for_test<FakeMoney>(&beneficiary);
+        release<FakeMoney>(admin_address, beneficiary_address, 0);
+        assert!(coin::balance<FakeMoney>(beneficiary_address) == 51440328, 0);
+
+        // fast forward and claw back
+        fast_forward_seconds(7200);
+        coin::register_for_test<FakeMoney>(&admin);
+        clawback<FakeMoney>(&admin, beneficiary_address, 0);
+        assert!(coin::balance<FakeMoney>(admin_address) == 102880658, 1);
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
+    }
+
+    #[test(admin = @0x1000, beneficiary = @0x1001, beneficiary2 = @0x1002)]
+    public entry fun test_multiple_wallets(admin: signer, beneficiary: signer, beneficiary2: signer) acquires WalletInfoCollection {
+        // init wallet and asset
+        let beneficiary_address = signer::address_of(&beneficiary);
+        init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, true);
+
+        // init wallet and asset
+        let beneficiary2_address = signer::address_of(&beneficiary2);
+        init_wallet(&admin, beneficiary2_address, timestamp::now_seconds(), 86400, true);
+
+        // init wallet and asset
+        init_wallet(&admin, beneficiary2_address, timestamp::now_seconds(), 172800, true);
+    }
+
+    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @0x1002)]
+    #[expected_failure(abort_code = 0x50000)]
+    public entry fun test_no_clawback(admin: signer, beneficiary: signer, coin_creator: signer) acquires WalletInfoCollection, CoinStoreCollection {
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+        let coin_in = coin::mint<FakeMoney>(1234567890, &mint_cap);
+
+        // init wallet and asset
+        let beneficiary_address = signer::address_of(&beneficiary);
+        init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, true);
+        init_asset<FakeMoney>(&admin);
+        let admin_address = signer::address_of(&admin);
+        deposit<FakeMoney>(admin_address, beneficiary_address, 0, coin_in);
+
+        // fast forward and claw back (should fail)
+        fast_forward_seconds(3600);
+        coin::register_for_test<FakeMoney>(&admin);
+        clawback<FakeMoney>(&admin, beneficiary_address, 0);
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
+    }
 }

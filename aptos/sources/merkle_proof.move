@@ -11,6 +11,7 @@
 /// hashing, or use a hash function other than keccak256 for hashing leaves.
 /// This is because the concatenation of a sorted pair of internal nodes in
 /// the merkle tree could be reinterpreted as a leaf value.
+/// TODO: Unit tests for multi-proof verification.
 module movemate::merkle_proof {
     use std::error;
     use std::hash;
@@ -137,5 +138,45 @@ module movemate::merkle_proof {
     fun efficient_hash(a: vector<u8>, b: vector<u8>): vector<u8> {
         vector::append(&mut a, b);
         hash::sha2_256(a)
+    }
+
+    #[test]
+    fun test_verify() {
+        let proof = vector::empty<vector<u8>>();
+        vector::push_back(&mut proof, x"8da9e1c820f9dbd1589fd6585872bc1063588625729e7ab0797cfc63a00bd950");
+        vector::push_back(&mut proof, x"995788ffc103b987ad50f5e5707fd094419eb12d9552cc423bd0cd86a3861433");
+        let root = x"cc086fcc038189b4641db2cc4f1de3bb132aefbd65d510d817591550937818c7";
+        let leaf = x"dca3326ad7e8121bf9cf9c12333e6b2271abe823ec9edfe42f813b1e768fa57b";
+        assert!(verify(&proof, root, leaf), 0);
+    }
+
+    #[test]
+    fun test_verify_bad_proof() {
+        let proof = vector::empty<vector<u8>>();
+        vector::push_back(&mut proof, x"8da9e1c820f9dbd1589fd6585872bc1063588625729e7ab0797cfc63a00bd950");
+        vector::push_back(&mut proof, x"995788ffc103b987ad50f555707fd094419eb12d9552cc423bd0cd86a3861433");
+        let root = x"cc086fcc038189b4641db2cc4f1de3bb132aefbd65d510d817591550937818c7";
+        let leaf = x"dca3326ad7e8121bf9cf9c12333e6b2271abe823ec9edfe42f813b1e768fa57b";
+        assert!(!verify(&proof, root, leaf), 0);
+    }
+
+    #[test]
+    fun test_verify_bad_root() {
+        let proof = vector::empty<vector<u8>>();
+        vector::push_back(&mut proof, x"8da9e1c820f9dbd1589fd6585872bc1063588625729e7ab0797cfc63a00bd950");
+        vector::push_back(&mut proof, x"995788ffc103b987ad50f5e5707fd094419eb12d9552cc423bd0cd86a3861433");
+        let root = x"cc086fcc038189b4641db2cc4f1de3bb132aefbd65d510d857591550937818c7";
+        let leaf = x"dca3326ad7e8121bf9cf9c12333e6b2271abe823ec9edfe42f813b1e768fa57b";
+        assert!(!verify(&proof, root, leaf), 0);
+    }
+
+    #[test]
+    fun test_verify_bad_leaf() {
+        let proof = vector::empty<vector<u8>>();
+        vector::push_back(&mut proof, x"8da9e1c820f9dbd1589fd6585872bc1063588625729e7ab0797cfc63a00bd950");
+        vector::push_back(&mut proof, x"995788ffc103b987ad50f5e5707fd094419eb12d9552cc423bd0cd86a3861433");
+        let root = x"cc086fcc038189b4641db2cc4f1de3bb132aefbd65d510d817591550937818c7";
+        let leaf = x"dca3326ad778121bf9cf9c12333e6b2271abe823ec9edfe42f813b1e768fa57b";
+        assert!(!verify(&proof, root, leaf), 0);
     }
 }

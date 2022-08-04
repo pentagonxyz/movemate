@@ -17,7 +17,7 @@ module movemate::virtual_block {
     const EBLOCK_TIME_NOT_PASSED: u64 = 0;
 
     /// @notice Struct for a virtual block with entries sorted by bids.
-    struct Mempool<phantom BidAssetType, EntryType> {
+    struct Mempool<phantom BidAssetType, EntryType> has store {
         blocks: vector<CB<vector<EntryType>>>,
         current_block_bids: Coin<BidAssetType>,
         last_block_timestamp: u64,
@@ -78,5 +78,126 @@ module movemate::virtual_block {
 
         // Return entries of last block
         last_block
+    }
+
+    #[test_only]
+    struct FakeEntry has drop {
+        stuff: u64
+    }
+
+    #[test_only]
+    struct FakeMoney { }
+
+    #[test_only]
+    struct FakeMoneyCapabilities has key {
+        mint_cap: coin::MintCapability<FakeMoney>,
+        burn_cap: coin::BurnCapability<FakeMoney>,
+    }
+
+    #[test_only]
+    struct TempMempool has key {
+        mempool: Mempool<FakeMoney, FakeEntry>
+    }
+
+    #[test_only]
+    fun fast_forward_microseconds(timestamp_microseconds: u64) {
+        timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_microseconds);
+    }
+
+    #[test(miner = @0x1000, coin_creator = @0x1001)]
+    public entry fun test_end_to_end(miner: signer, coin_creator: signer) {
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+        let coin_in_a = coin::mint<FakeMoney>(1234000000, &mint_cap);
+        let coin_in_b = coin::mint<FakeMoney>(5678000000, &mint_cap);
+
+        // create mempool
+        let mempool = new_mempool<FakeMoney, FakeEntry>(1 << 14, 5000000); // 25% miner fee rate and 5 second block time
+
+        // add entry
+        add_entry(&mut mempool, FakeEntry { stuff: 1234 }, coin_in_a);
+
+        // fast forward and add entry
+        fast_forward_microseconds(3000000);
+        add_entry(&mut mempool, FakeEntry { stuff: 5678 }, coin_in_b);
+
+        // fast forward and mine block
+        fast_forward_microseconds(3000000);
+        let miner_address = std::signer::address_of(&miner);
+        coin::register_for_test<FakeMoney>(&miner);
+        let cb = mine_entries(&mut mempool, miner_address);
+        assert!(coin::balance<FakeMoney>(miner_address) == (1234000000 + 5678000000) / 4, 0);
+
+        // Loop through highest to lowest bid
+        let last_bid = 0xFFFFFFFFFFFFFFFF;
+
+        while (!crit_bit::is_empty(&cb)) {
+            let bid = crit_bit::max_key(&cb);
+            assert!(bid < last_bid, 1);
+            crit_bit::pop(&mut cb, bid);
+        };
+
+        crit_bit::destroy_empty(cb);
+
+        // extract mempool fees
+        let mempool_fees = extract_mempool_fees(&mut mempool);
+        assert!(coin::value(&mempool_fees) == (1234000000 + 5678000000) - ((1234000000 + 5678000000) / 4), 2);
+
+        // clean up: we can't drop coins so we burn them
+        coin::burn(mempool_fees, &burn_cap);
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
+        move_to(&coin_creator, TempMempool {
+            mempool,
+        });
+    }
+
+    #[test(miner = @0x1000, coin_creator = @0x1001)]
+    #[expected_failure(abort_code = 0x50000)]
+    public entry fun test_mine_before_time(miner: signer, coin_creator: signer) {
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+        let coin_in = coin::mint<FakeMoney>(1234000000, &mint_cap);
+
+        // create mempool
+        let mempool = new_mempool<FakeMoney, FakeEntry>(1 << 14, 5000000); // 25% miner fee rate and 5 second block time
+
+        // add entry
+        add_entry(&mut mempool, FakeEntry { stuff: 1234 }, coin_in);
+
+        // fast forward and try to mine
+        fast_forward_microseconds(3000000);
+        let miner_address = std::signer::address_of(&miner);
+        coin::register_for_test<FakeMoney>(&miner);
+        let cb = mine_entries(&mut mempool, miner_address);
+
+        // destroy cb tree
+        crit_bit::pop(&mut cb, 1234);
+        crit_bit::destroy_empty(cb);
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
+        move_to(&coin_creator, TempMempool {
+            mempool,
+        });
     }
 }
