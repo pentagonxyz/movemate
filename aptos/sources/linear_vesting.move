@@ -8,6 +8,7 @@
 /// Consequently, if the vesting has already started, any amount of tokens sent to this contract will (at least partly)
 /// be immediately releasable.
 module movemate::linear_vesting {
+    use std::error;
     use std::signer;
     use std::vector;
 
@@ -16,6 +17,9 @@ module movemate::linear_vesting {
 
     use aptos_framework::coin::{Self, Coin};
     use aptos_framework::timestamp;
+
+    /// @dev When trying to clawback a wallet without the privilege to do so.
+    const ECANNOT_CLAWBACK: u64 = 0;
 
     struct WalletInfo has store {
         start: u64,
@@ -137,7 +141,7 @@ module movemate::linear_vesting {
         coin::deposit(beneficiary, release_coin);
 
         // Validate clawback
-        assert!(wallet_info.can_clawback, 1000);
+        assert!(wallet_info.can_clawback, error::permission_denied(ECANNOT_CLAWBACK));
 
         // Execute clawback
         let clawback_coin = coin::extract_all(&mut coin_store.coin);

@@ -8,12 +8,16 @@
 /// Consequently, if the vesting has already started, any amount of tokens sent to this contract will (at least partly)
 /// be immediately releasable.
 module movemate::linear_vesting {
+    use std::errors;
     use std::option::{Self, Option};
 
     use sui::coin::{Self, Coin};
     use sui::object::{Self, Info};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
+
+    /// @dev When trying to clawback a wallet without the privilege to do so.
+    const ECANNOT_CLAWBACK: u64 = 0;
 
     struct Wallet<phantom T> has key {
         info: Info,
@@ -62,7 +66,7 @@ module movemate::linear_vesting {
     public entry fun clawback<T>(wallet: &mut Wallet<T>, ctx: &mut TxContext) {
         // Check clawbacker address
         let sender = tx_context::sender(ctx);
-        assert!(option::is_some(&wallet.clawbacker) && sender == *option::borrow(&wallet.clawbacker), 1000);
+        assert!(option::is_some(&wallet.clawbacker) && sender == *option::borrow(&wallet.clawbacker), errors::requires_address(ECANNOT_CLAWBACK));
 
         // Release amount
         let releasable = vested_amount(wallet.start, wallet.duration, coin::value(&wallet.coin), wallet.released, tx_context::epoch(ctx)) - wallet.released;

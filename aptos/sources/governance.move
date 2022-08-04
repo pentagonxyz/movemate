@@ -7,6 +7,7 @@
 /// Tokenholders call `cast_vote<CoinType, ProposalCapabilityType>()` to cast votes.
 /// When the proposal passes, call `execute_proposal<CoinType, ProposalCapabilityType>()` to retrieve the forum's `signer`.
 module movemate::governance {
+    use std::error;
     use std::signer;
     use std::string::String;
     use std::vector;
@@ -21,6 +22,39 @@ module movemate::governance {
     use aptos_framework::transaction_context;
 
     use movemate::math;
+    
+    /// @dev When the proposer's votes are below the threshold required to create a proposal.
+    const EPROPOSER_VOTES_BELOW_THRESHOLD: u64 = 0;
+
+    /// @dev When trying to vote when the voting period has not yet started.
+    const EVOTING_NOT_STARTED: u64 = 1;
+
+    /// @dev When trying to vote when the voting period has ended.
+    const EVOTING_ENDED: u64 = 2;
+
+    /// @dev When trying to cast the same vote for the same proposal twice.
+    const EVOTE_NOT_CHANGED: u64 = 3;
+
+    /// @dev When trying to execute a proposal whose queue period has not yet ended.
+    const EQUEUE_PERIOD_NOT_OVER: u64 = 4;
+
+    /// @dev When trying to execute an expired proposal--i.e., one whose execution window has passed.
+    const EPROPOSAL_EXPIRED: u64 = 5;
+
+    /// @dev When trying to execute a proposal that has already been executed.
+    const EPROPOSAL_ALREADY_EXECUTED: u64 = 6;
+
+    /// @dev When trying to execute a proposal from the wrong script.
+    const ESCRIPT_HASH_MISMATCH: u64 = 7;
+
+    /// @dev When trying to execute an unapproved proposal.
+    const EAPPROVAL_VOTES_BELOW_THRESHOLD: u64 = 8;
+
+    /// @dev When trying to execute a cancelled proposal.
+    const ECANCELLATION_VOTES_ABOVE_THRESHOLD: u64 = 9;
+
+    /// @dev When trying to `get_past_votes` for a timestamp in the future.
+    const ETIMESTAMP_IN_FUTURE: u64 = 10;
 
     struct Forum<phantom CoinType> has key {
         voting_delay: u64,
@@ -133,7 +167,7 @@ module movemate::governance {
         let proposer_address = signer::address_of(proposer);
         let proposer_votes = get_votes<CoinType>(proposer_address);
         let forum_res = borrow_global_mut<Forum<CoinType>>(forum_address);
-        assert!(proposer_votes >= forum_res.proposal_threshold, 1000);
+        assert!(proposer_votes >= forum_res.proposal_threshold, error::permission_denied(EPROPOSER_VOTES_BELOW_THRESHOLD));
 
         // Add proposal to forum
         vector::push_back(&mut forum_res.proposals, Proposal {
@@ -161,8 +195,8 @@ module movemate::governance {
         // Check timestamps
         let voting_start = proposal.timestamp + forum_res.voting_delay;
         let now = timestamp::now_seconds();
-        assert!(now >= voting_start, 1000);
-        assert!(now < voting_start + forum_res.voting_period, 1000);
+        assert!(now >= voting_start, error::invalid_state(EVOTING_NOT_STARTED));
+        assert!(now < voting_start + forum_res.voting_period, error::invalid_state(EVOTING_ENDED));
 
         // Get past votes
         let sender = signer::address_of(account);
@@ -171,7 +205,7 @@ module movemate::governance {
         // Remove old vote if necessary
         if (table::contains(&proposal.votes, sender)) {
             let old_vote = table::remove(&mut proposal.votes, sender);
-            assert!(vote != old_vote, 1000); // VOTE_NOT_CHANGED
+            assert!(vote != old_vote, error::already_exists(EVOTE_NOT_CHANGED));
             if (old_vote) *&mut proposal.approval_votes = *&proposal.approval_votes - votes
             else *&mut proposal.cancellation_votes = *&proposal.cancellation_votes - votes;
         };
@@ -194,15 +228,15 @@ module movemate::governance {
         // Check timestamps
         let post_queue = proposal.timestamp + forum_res.voting_delay + forum_res.voting_period + forum_res.queue_period;
         let now = timestamp::now_seconds();
-        assert!(now >= post_queue, 1000);
+        assert!(now >= post_queue, error::invalid_state(EQUEUE_PERIOD_NOT_OVER));
         let expiration = post_queue + forum_res.execution_window;
-        assert!(now < expiration, 1000);
-        assert!(!proposal.executed, 1000);
-        assert!(transaction_context::get_script_hash() == proposal.script_hash, 1000);
+        assert!(now < expiration, error::invalid_state(EPROPOSAL_EXPIRED));
+        assert!(!proposal.executed, error::invalid_state(EPROPOSAL_ALREADY_EXECUTED));
+        assert!(transaction_context::get_script_hash() == proposal.script_hash, error::permission_denied(ESCRIPT_HASH_MISMATCH));
 
         // Check votes
-        assert!(proposal.approval_votes >= forum_res.approval_threshold, 1000);
-        assert!(proposal.cancellation_votes < forum_res.cancellation_threshold, 1000);
+        assert!(proposal.approval_votes >= forum_res.approval_threshold, error::invalid_state(EAPPROVAL_VOTES_BELOW_THRESHOLD));
+        assert!(proposal.cancellation_votes < forum_res.cancellation_threshold, error::invalid_state(ECANCELLATION_VOTES_ABOVE_THRESHOLD));
 
         // Set proposal as executed
         *&mut proposal.executed = true;
@@ -227,7 +261,7 @@ module movemate::governance {
     /// Requirements:
     /// - `timestamp` must have already happened
     public fun get_past_votes<CoinType>(account: address, timestamp: u64): u64 acquires Checkpoints {
-        assert!(timestamp < timestamp::now_seconds(), 1000);
+        assert!(timestamp < timestamp::now_seconds(), error::invalid_argument(ETIMESTAMP_IN_FUTURE));
         checkpoints_lookup<CoinType>(account, timestamp)
     }
 

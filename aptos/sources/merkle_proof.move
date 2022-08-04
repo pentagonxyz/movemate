@@ -12,10 +12,14 @@
 /// This is because the concatenation of a sorted pair of internal nodes in
 /// the merkle tree could be reinterpreted as a leaf value.
 module movemate::merkle_proof {
+    use std::error;
     use std::hash;
     use std::vector;
 
     use movemate::vectors;
+
+    /// @dev When an invalid multi-proof is supplied. Proof flags length must equal proof length + leaves length - 1.
+    const EINVALID_MULTI_PROOF: u64 = 0;
 
     /// @dev Returns true if a `leaf` can be proved to be a part of a Merkle tree
     /// defined by `root`. For this, a `proof` must be provided, containing
@@ -74,7 +78,7 @@ module movemate::merkle_proof {
         let total_hashes = vector::length(proof_flags);
 
         // Check proof validity.
-        assert!(leaves_len + vector::length(proof) - 1 == total_hashes, 1000); // MerkleProof: invalid multiproof
+        assert!(leaves_len + vector::length(proof) - 1 == total_hashes, error::invalid_argument(EINVALID_MULTI_PROOF));
 
         // The xxxPos values are "pointers" to the next value to consume in each array. All accesses are done using
         // `xxx[xxxPos++]`, which return the current value and increment the pointer, thus mimicking a queue's "pop".

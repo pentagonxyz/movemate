@@ -5,12 +5,16 @@
 /// Once you've created a new mempool (specifying a miner fee rate and a block time/delay), simply add entries to the block,
 /// mine the entries (for a miner fee), and repeat. Extract mempool fees as necessary.
 module movemate::virtual_block {
+    use std::errors;
     use std::vector;
 
     use sui::coin::{Self, Coin};
     use sui::tx_context::{Self, TxContext};
 
     use movemate::crit_bit::{Self, CB};
+
+    /// @dev When trying to mine a block before the block time has passed.
+    const EBLOCK_TIME_NOT_PASSED: u64 = 0;
 
     /// @notice Struct for a virtual block with entries sorted by bids.
     struct Mempool<phantom BidAssetType, EntryType> {
@@ -57,7 +61,7 @@ module movemate::virtual_block {
     public fun mine_entries<BidAssetType, EntryType>(mempool: &mut Mempool<BidAssetType, EntryType>, miner: address, ctx: &mut TxContext): CB<vector<EntryType>> {
         // Validate time now >= last block time + block delay
         let now = tx_context::epoch(ctx);
-        assert!(now >= mempool.last_block_timestamp + mempool.block_time, 1000);
+        assert!(now >= mempool.last_block_timestamp + mempool.block_time, errors::invalid_state(EBLOCK_TIME_NOT_PASSED));
 
         // Withdraw miner_fee_rate / 2**16 to the miner
         let miner_fee = coin::value(&mempool.current_block_bids) * mempool.miner_fee_rate / (1 << 16);

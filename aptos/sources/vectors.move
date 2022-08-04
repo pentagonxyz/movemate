@@ -1,7 +1,14 @@
+/// @title vectors
+/// @notice Vector utilities.
 module movemate::vectors {
+    use std::error;
     use std::vector;
 
     use movemate::math;
+
+    /// @dev When you supply vectors of different lengths to a function requiring equal-length vectors.
+    /// TODO: Support variable length vectors?
+    const EVECTOR_LENGTH_MISMATCH: u64 = 0;
 
     /// @dev Searches a sorted `vec` and returns the first index that contains
     /// a value greater or equal to `element`. If no such index exists (i.e. all
@@ -40,7 +47,7 @@ module movemate::vectors {
     public fun lt(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
         let len = vector::length(a);
-        assert!(len == vector::length(b), 10000);
+        assert!(len == vector::length(b), error::invalid_argument(EVECTOR_LENGTH_MISMATCH));
 
         loop {
             if (i >= len) break;
@@ -57,7 +64,7 @@ module movemate::vectors {
     public fun gt(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
         let len = vector::length(a);
-        assert!(len == vector::length(b), 10000);
+        assert!(len == vector::length(b), error::invalid_argument(EVECTOR_LENGTH_MISMATCH));
 
         loop {
             if (i >= len) break;
@@ -74,7 +81,7 @@ module movemate::vectors {
     public fun lte(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
         let len = vector::length(a);
-        assert!(len == vector::length(b), 10000);
+        assert!(len == vector::length(b), error::invalid_argument(EVECTOR_LENGTH_MISMATCH));
 
         loop {
             if (i >= len) break;
@@ -91,7 +98,7 @@ module movemate::vectors {
     public fun gte(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
         let len = vector::length(a);
-        assert!(len == vector::length(b), 10000);
+        assert!(len == vector::length(b), error::invalid_argument(EVECTOR_LENGTH_MISMATCH));
 
         loop {
             if (i >= len) break;
