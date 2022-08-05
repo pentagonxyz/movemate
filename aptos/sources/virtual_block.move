@@ -81,7 +81,7 @@ module movemate::virtual_block {
     }
 
     #[test_only]
-    struct FakeEntry has drop {
+    struct FakeEntry has store, drop {
         stuff: u64
     }
 

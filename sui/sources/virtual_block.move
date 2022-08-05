@@ -17,7 +17,7 @@ module movemate::virtual_block {
     const EBLOCK_TIME_NOT_PASSED: u64 = 0;
 
     /// @notice Struct for a virtual block with entries sorted by bids.
-    struct Mempool<phantom BidAssetType, EntryType> {
+    struct Mempool<phantom BidAssetType, EntryType> has store {
         blocks: vector<CB<vector<EntryType>>>,
         current_block_bids: Coin<BidAssetType>,
         last_block_timestamp: u64,
