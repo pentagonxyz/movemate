@@ -388,38 +388,41 @@ module movemate::governance {
     public entry fun test_end_to_end() {
         // Test scenario
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        let ctx = test_scenario::ctx(scenario);
 
         // Mint fake coin
-        let coin_in = coin::mint_for_testing<FakeMoney>(1234567890 + 400000000 + 600000000 + 1100000000, ctx);
+        let coin_in = coin::mint_for_testing<FakeMoney>(1234567890 + 400000000 + 600000000 + 1100000000, test_scenario::ctx(scenario));
 
         // Register voters
-        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, ctx);
-        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, ctx);
-        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, ctx);
-        new_voter<FakeMoney>(TEST_VOTER_D_ADDR, ctx);
-        let delegate_a = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
-        let delegate_b = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
-        let delegate_c = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
-        let delegate_d = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, test_scenario::ctx(scenario));
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
+        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, test_scenario::ctx(scenario));
+        new_voter<FakeMoney>(TEST_VOTER_D_ADDR, test_scenario::ctx(scenario));
+        let delegate_a_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_b_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_c_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_d_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_a = test_scenario::borrow_mut(&mut delegate_a_wrapper);
+        let delegate_b = test_scenario::borrow_mut(&mut delegate_b_wrapper);
+        let delegate_c = test_scenario::borrow_mut(&mut delegate_c_wrapper);
+        let delegate_d = test_scenario::borrow_mut(&mut delegate_d_wrapper);
 
         // Lock coins, test unlocking coins, and delegate from C to A
-        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1234567890, &mut delegate_a, ctx);
+        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1234567890, delegate_a, test_scenario::ctx(scenario));
         let coin_store_a = test_scenario::take_owned<CoinStore<FakeMoney>>(scenario);
-        unlock_coins<FakeMoney>(&mut coin_store_a, TEST_VOTER_A_ADDR, 34567890, &mut delegate_a, ctx);
+        unlock_coins<FakeMoney>(&mut coin_store_a, TEST_VOTER_A_ADDR, 34567890, delegate_a, test_scenario::ctx(scenario));
         let extra_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
         assert!(coin::value(&extra_coin) == 34567890, 0);
-        transfer::transfer(extra_coin, TEST_VOTER_A_ADDR);
-        assert!(get_votes<FakeMoney>(&delegate_a) == 1200000000, 1);
-        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, &mut delegate_b, ctx);
-        lock_coins(&mut coin_in, TEST_VOTER_C_ADDR, 600000000, &mut delegate_c, ctx);
-        lock_coins(&mut coin_in, TEST_VOTER_D_ADDR, 1100000000, &mut delegate_d, ctx);
-        delegate(&mut coin_store_a, &mut delegate_a, &mut delegate_c, ctx);
-        transfer::transfer(coin_store_a, TEST_VOTER_A_ADDR);
-        assert!(get_votes<FakeMoney>(&delegate_a) == 1800000000, 2);
-        assert!(get_votes<FakeMoney>(&delegate_b) == 400000000, 3);
-        assert!(get_votes<FakeMoney>(&delegate_c) == 0, 4);
-        assert!(get_votes<FakeMoney>(&delegate_d) == 1100000000, 5);
+        test_scenario::return_owned(scenario, extra_coin);
+        assert!(get_votes<FakeMoney>(delegate_a) == 1200000000, 1);
+        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, delegate_b, test_scenario::ctx(scenario));
+        lock_coins(&mut coin_in, TEST_VOTER_C_ADDR, 600000000, delegate_c, test_scenario::ctx(scenario));
+        lock_coins(&mut coin_in, TEST_VOTER_D_ADDR, 1100000000, delegate_d, test_scenario::ctx(scenario));
+        delegate(&mut coin_store_a, delegate_a, delegate_c, test_scenario::ctx(scenario));
+        test_scenario::return_owned(scenario, coin_store_a);
+        assert!(get_votes<FakeMoney>(delegate_a) == 1800000000, 2);
+        assert!(get_votes<FakeMoney>(delegate_b) == 400000000, 3);
+        assert!(get_votes<FakeMoney>(delegate_c) == 0, 4);
+        assert!(get_votes<FakeMoney>(delegate_d) == 1100000000, 5);
 
         // Init forum
         init_forum<FakeMoney>(
@@ -430,30 +433,32 @@ module movemate::governance {
             1200000000,
             2000000000,
             1500000000,
-            ctx
+            test_scenario::ctx(scenario)
         );
-        let forum = test_scenario::borrow_mut(&mut test_scenario::take_shared<Forum<FakeMoney>>(scenario));
+        let forum_wrapper = test_scenario::take_shared<Forum<FakeMoney>>(scenario);
+        let forum = test_scenario::borrow_mut(&mut forum_wrapper);
 
         // Create proposal from address A
         create_proposal<FakeMoney, FakeProposalCapability>(
             forum,
             b"Test",
             b"Example",
-            &delegate_a,
-            ctx
+            delegate_a,
+            test_scenario::ctx(scenario)
         );
-        let proposal = test_scenario::borrow_mut(&mut test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario));
+        let proposal_wrapper = test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario);
+        let proposal = test_scenario::borrow_mut(&mut proposal_wrapper);
 
         // Cast votes
         test_scenario::next_epoch(scenario);
         test_scenario::next_epoch(scenario);
-        cast_vote(forum, proposal, true, &delegate_a, ctx);
+        cast_vote(forum, proposal, true, delegate_a, test_scenario::ctx(scenario));
         test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
-        cast_vote(forum, proposal, true, &delegate_b, ctx);
+        cast_vote(forum, proposal, true, delegate_b, test_scenario::ctx(scenario));
         test_scenario::next_tx(scenario, &TEST_VOTER_C_ADDR);
-        cast_vote(forum, proposal, false, &delegate_c, ctx);
+        cast_vote(forum, proposal, false, delegate_c, test_scenario::ctx(scenario));
         test_scenario::next_tx(scenario, &TEST_VOTER_D_ADDR);
-        cast_vote(forum, proposal, false, &delegate_d, ctx);
+        cast_vote(forum, proposal, false, delegate_d, test_scenario::ctx(scenario));
 
         // Execute proposal
         test_scenario::next_epoch(scenario);
@@ -465,10 +470,16 @@ module movemate::governance {
             forum,
             proposal,
             FakeProposalCapability { },
-            ctx
+            test_scenario::ctx(scenario)
         );
 
-        // Destory coins since we can't drop them
+        // Return forum + destroy coins since we can't drop them
+        test_scenario::return_shared(scenario, forum_wrapper);
+        test_scenario::return_shared(scenario, proposal_wrapper);
+        test_scenario::return_shared(scenario, delegate_a_wrapper);
+        test_scenario::return_shared(scenario, delegate_b_wrapper);
+        test_scenario::return_shared(scenario, delegate_c_wrapper);
+        test_scenario::return_shared(scenario, delegate_d_wrapper);
         coin::destroy_for_testing(coin_in);
     }
 
@@ -476,26 +487,28 @@ module movemate::governance {
     #[expected_failure(abort_code = 0x1000b)]
     public entry fun test_proposal_cancellation() {
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        let ctx = test_scenario::ctx(scenario);
 
         // Mint fake coin
-        let coin_in = coin::mint_for_testing<FakeMoney>(1800000000 + 400000000 + 1100000000, ctx);
+        let coin_in = coin::mint_for_testing<FakeMoney>(1800000000 + 400000000 + 1100000000, test_scenario::ctx(scenario));
 
         // Register voters
-        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, ctx);
-        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, ctx);
-        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, ctx);
-        let delegate_a = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
-        let delegate_b = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
-        let delegate_c = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, test_scenario::ctx(scenario));
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
+        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, test_scenario::ctx(scenario));
+        let delegate_a_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_b_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_c_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_a = test_scenario::borrow_mut(&mut delegate_a_wrapper);
+        let delegate_b = test_scenario::borrow_mut(&mut delegate_b_wrapper);
+        let delegate_c = test_scenario::borrow_mut(&mut delegate_c_wrapper);
 
         // Lock coins and delegate from C to A
-        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1800000000, &mut delegate_a, ctx);
-        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, &mut delegate_b, ctx);
-        lock_coins(&mut coin_in, TEST_VOTER_C_ADDR, 1100000000, &mut delegate_c, ctx);
-        assert!(get_votes<FakeMoney>(&delegate_a) == 1800000000, 0);
-        assert!(get_votes<FakeMoney>(&delegate_b) == 400000000, 1);
-        assert!(get_votes<FakeMoney>(&delegate_c) == 1100000000, 2);
+        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1800000000, delegate_a, test_scenario::ctx(scenario));
+        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, delegate_b, test_scenario::ctx(scenario));
+        lock_coins(&mut coin_in, TEST_VOTER_C_ADDR, 1100000000, delegate_c, test_scenario::ctx(scenario));
+        assert!(get_votes<FakeMoney>(delegate_a) == 1800000000, 0);
+        assert!(get_votes<FakeMoney>(delegate_b) == 400000000, 1);
+        assert!(get_votes<FakeMoney>(delegate_c) == 1100000000, 2);
 
         // Init forum
         init_forum<FakeMoney>(
@@ -506,28 +519,30 @@ module movemate::governance {
             1200000000,
             1800000000,
             1500000000,
-            ctx
+            test_scenario::ctx(scenario)
         );
-        let forum = test_scenario::borrow_mut(&mut test_scenario::take_shared<Forum<FakeMoney>>(scenario));
+        let forum_wrapper = test_scenario::take_shared<Forum<FakeMoney>>(scenario);
+        let forum = test_scenario::borrow_mut(&mut forum_wrapper);
 
         // Create proposal from address A
         create_proposal<FakeMoney, FakeProposalCapability>(
             forum,
             b"Test",
             b"Example",
-            &delegate_a,
-            ctx
+            delegate_a,
+            test_scenario::ctx(scenario)
         );
-        let proposal = test_scenario::borrow_mut(&mut test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario));
+        let proposal_wrapper = test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario);
+        let proposal = test_scenario::borrow_mut(&mut proposal_wrapper);
 
         // Cast votes
         test_scenario::next_epoch(scenario);
         test_scenario::next_epoch(scenario);
-        cast_vote(forum, proposal, true, &delegate_a, ctx);
+        cast_vote(forum, proposal, true, delegate_a, test_scenario::ctx(scenario));
         test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
-        cast_vote(forum, proposal, false, &delegate_b, ctx);
+        cast_vote(forum, proposal, false, delegate_b, test_scenario::ctx(scenario));
         test_scenario::next_tx(scenario, &TEST_VOTER_C_ADDR);
-        cast_vote(forum, proposal, false, &delegate_c, ctx);
+        cast_vote(forum, proposal, false, delegate_c, test_scenario::ctx(scenario));
 
         // Execute proposal
         test_scenario::next_epoch(scenario);
@@ -539,10 +554,15 @@ module movemate::governance {
             forum,
             proposal,
             FakeProposalCapability { },
-            ctx
+            test_scenario::ctx(scenario)
         );
 
-        // Destory coins since we can't drop them
+        // Return forum + destroy coins since we can't drop them
+        test_scenario::return_shared(scenario, forum_wrapper);
+        test_scenario::return_shared(scenario, proposal_wrapper);
+        test_scenario::return_shared(scenario, delegate_a_wrapper);
+        test_scenario::return_shared(scenario, delegate_b_wrapper);
+        test_scenario::return_shared(scenario, delegate_c_wrapper);
         coin::destroy_for_testing(coin_in);
     }
 
@@ -551,22 +571,23 @@ module movemate::governance {
     public entry fun test_proposal_lack_of_quorum() {
         // Test scenario
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        let ctx = test_scenario::ctx(scenario);
 
         // Mint fake coin
-        let coin_in = coin::mint_for_testing<FakeMoney>(1700000000 + 400000000, ctx);
+        let coin_in = coin::mint_for_testing<FakeMoney>(1700000000 + 400000000, test_scenario::ctx(scenario));
 
         // Register voters
-        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, ctx);
-        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, ctx);
-        let delegate_a = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
-        let delegate_b = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, test_scenario::ctx(scenario));
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
+        let delegate_a_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_b_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_a = test_scenario::borrow_mut(&mut delegate_a_wrapper);
+        let delegate_b = test_scenario::borrow_mut(&mut delegate_b_wrapper);
 
         // Lock coins and delegate from C to A
-        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1700000000, &mut delegate_a, ctx);
-        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, &mut delegate_b, ctx);
-        assert!(get_votes<FakeMoney>(&delegate_a) == 1700000000, 0);
-        assert!(get_votes<FakeMoney>(&delegate_b) == 400000000, 1);
+        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1700000000, delegate_a, test_scenario::ctx(scenario));
+        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, delegate_b, test_scenario::ctx(scenario));
+        assert!(get_votes<FakeMoney>(delegate_a) == 1700000000, 0);
+        assert!(get_votes<FakeMoney>(delegate_b) == 400000000, 1);
 
         // Init forum
         init_forum<FakeMoney>(
@@ -577,26 +598,28 @@ module movemate::governance {
             1200000000,
             1800000000,
             1500000000,
-            ctx
+            test_scenario::ctx(scenario)
         );
-        let forum = test_scenario::borrow_mut(&mut test_scenario::take_shared<Forum<FakeMoney>>(scenario));
+        let forum_wrapper = test_scenario::take_shared<Forum<FakeMoney>>(scenario);
+        let forum = test_scenario::borrow_mut(&mut forum_wrapper);
 
         // Create proposal from address A
         create_proposal<FakeMoney, FakeProposalCapability>(
             forum,
             b"Test",
             b"Example",
-            &delegate_a,
-            ctx
+            delegate_a,
+            test_scenario::ctx(scenario)
         );
-        let proposal = test_scenario::borrow_mut(&mut test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario));
+        let proposal_wrapper = test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario);
+        let proposal = test_scenario::borrow_mut(&mut proposal_wrapper);
 
         // Cast votes
         test_scenario::next_epoch(scenario);
         test_scenario::next_epoch(scenario);
-        cast_vote(forum, proposal, true, &delegate_a, ctx);
+        cast_vote(forum, proposal, true, delegate_a, test_scenario::ctx(scenario));
         test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
-        cast_vote(forum, proposal, false, &delegate_b, ctx);
+        cast_vote(forum, proposal, false, delegate_b, test_scenario::ctx(scenario));
 
         // Execute proposal
         test_scenario::next_epoch(scenario);
@@ -608,10 +631,14 @@ module movemate::governance {
             forum,
             proposal,
             FakeProposalCapability { },
-            ctx
+            test_scenario::ctx(scenario)
         );
 
-        // Destory coins since we can't drop them
+        // Return forum + destroy coins since we can't drop them
+        test_scenario::return_shared(scenario, forum_wrapper);
+        test_scenario::return_shared(scenario, proposal_wrapper);
+        test_scenario::return_shared(scenario, delegate_a_wrapper);
+        test_scenario::return_shared(scenario, delegate_b_wrapper);
         coin::destroy_for_testing(coin_in);
     }
 
@@ -620,18 +647,18 @@ module movemate::governance {
     public entry fun test_unqualified_proposer() {
         // Test scenario
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        let ctx = test_scenario::ctx(scenario);
 
         // Mint fake coin
-        let coin_in = coin::mint_for_testing<FakeMoney>(800000000, ctx);
+        let coin_in = coin::mint_for_testing<FakeMoney>(800000000, test_scenario::ctx(scenario));
 
         // Register voters
-        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, ctx);
-        let delegate_a = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, test_scenario::ctx(scenario));
+        let delegate_a_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        let delegate_a = test_scenario::borrow_mut(&mut delegate_a_wrapper);
 
         // Lock coins and delegate from C to A
-        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 800000000, &mut delegate_a, ctx);
-        assert!(get_votes<FakeMoney>(&delegate_a) == 800000000, 0);
+        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 800000000, delegate_a, test_scenario::ctx(scenario));
+        assert!(get_votes<FakeMoney>(delegate_a) == 800000000, 0);
 
         // Init forum
         init_forum<FakeMoney>(
@@ -642,20 +669,23 @@ module movemate::governance {
             1200000000,
             1800000000,
             1500000000,
-            ctx
+            test_scenario::ctx(scenario)
         );
-        let forum = test_scenario::borrow_mut(&mut test_scenario::take_shared<Forum<FakeMoney>>(scenario));
+        let forum_wrapper = test_scenario::take_shared<Forum<FakeMoney>>(scenario);
+        let forum = test_scenario::borrow_mut(&mut forum_wrapper);
 
         // Attempt to create proposal from address A
         create_proposal<FakeMoney, FakeProposalCapability>(
             forum,
             b"Test",
             b"Example",
-            &delegate_a,
-            ctx
+            delegate_a,
+            test_scenario::ctx(scenario)
         );
 
-        // Destory coins since we can't drop them
+        // Return forum + destroy coins since we can't drop them
+        test_scenario::return_shared(scenario, forum_wrapper);
+        test_scenario::return_shared(scenario, delegate_a_wrapper);
         coin::destroy_for_testing(coin_in);
     }
 }
