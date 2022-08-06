@@ -289,7 +289,7 @@ module movemate::governance {
     /// Requirements:
     /// - `timestamp` must have already happened
     public fun get_past_votes<CoinType>(voter: &Delegate<CoinType>, timestamp: u64, ctx: &mut TxContext): u64 {
-        assert!(timestamp < tx_context::epoch(ctx), errors::invalid_argument(ETIMESTAMP_IN_FUTURE));
+        assert!(timestamp <= tx_context::epoch(ctx), errors::invalid_argument(ETIMESTAMP_IN_FUTURE));
         checkpoints_lookup(voter, timestamp)
     }
 
