@@ -5,6 +5,7 @@
 /// Then, when it's time to upgrade, create a governance proposal from your new module that calls `create_proposal<CoinType, ProposalCapabilityType>()`.
 /// Tokenholders call `cast_vote<CoinType, ProposalCapabilityType>()` to cast votes.
 /// When the proposal passes, call `execute_proposal<CoinType, ProposalCapabilityType>()` to retrieve a copy of the `GovernanceCapability<CoinType>`.
+/// @dev TODO: Finish tests.
 module movemate::governance {
     use std::ascii::{Self, String};
     use std::errors;
@@ -324,16 +325,17 @@ module movemate::governance {
 
     /// @dev Change delegation for `delegator` to `delegatee`.
     /// TODO: Optional delegation?
-    public entry fun delegate<CoinType>(coin_store: &mut CoinStore<CoinType>, delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
+    public entry fun delegate<CoinType>(coin_store: &mut CoinStore<CoinType>, old_delegatee: &mut Delegate<CoinType>, new_delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
+        // Input validation
+        assert!(coin_store.delegatee == old_delegatee.delegatee, errors::invalid_argument(EDELEGATE_ARGUMENT_MISMATCH));
+
         // Get delegator locked balance
         let delegator_balance = coin::value(&coin_store.coin);
         
-        // Update delegatee (removing old delegatee's votes)
-        write_checkpoint<CoinType>(delegatee, true, delegator_balance, ctx);
-        *&mut coin_store.delegatee = delegatee.delegatee;
-
-        // Add votes to new delegatee
-        write_checkpoint<CoinType>(delegatee, false, delegator_balance, ctx);
+        // Update delegatee (removing old delegatee's votes and adding votes to new delegatee)
+        write_checkpoint<CoinType>(old_delegatee, true, delegator_balance, ctx);
+        *&mut coin_store.delegatee = new_delegatee.delegatee;
+        write_checkpoint<CoinType>(new_delegatee, false, delegator_balance, ctx);
     }
 
     /// @dev Internal function to add a votes checkpoint.
@@ -356,5 +358,304 @@ module movemate::governance {
         };
 
         (old_weight, new_weight)
+    }
+
+    #[test_only]
+    use sui::test_scenario;
+
+    #[test_only]
+    const TEST_SENDER_ADDR: address = @0xA11CE;
+
+    #[test_only]
+    const TEST_VOTER_A_ADDR: address = @0x1000;
+
+    #[test_only]
+    const TEST_VOTER_B_ADDR: address = @0x1001;
+
+    #[test_only]
+    const TEST_VOTER_C_ADDR: address = @0x1002;
+
+    #[test_only]
+    const TEST_VOTER_D_ADDR: address = @0x1003;
+
+    #[test_only]
+    struct FakeMoney { }
+
+    #[test_only]
+    struct FakeProposalCapability has drop { }
+
+    #[test]
+    public entry fun test_end_to_end() {
+        // Test scenario
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        let ctx = test_scenario::ctx(scenario);
+
+        // Mint fake coin
+        let coin_in = coin::mint_for_testing<FakeMoney>(1234567890 + 400000000 + 600000000 + 1100000000, ctx);
+
+        // Register voters
+        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, ctx);
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, ctx);
+        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, ctx);
+        new_voter<FakeMoney>(TEST_VOTER_D_ADDR, ctx);
+        let delegate_a = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        let delegate_b = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        let delegate_c = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        let delegate_d = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+
+        // Lock coins, test unlocking coins, and delegate from C to A
+        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1234567890, &mut delegate_a, ctx);
+        let coin_store_a = test_scenario::take_owned<CoinStore<FakeMoney>>(scenario);
+        unlock_coins<FakeMoney>(&mut coin_store_a, TEST_VOTER_A_ADDR, 34567890, &mut delegate_a, ctx);
+        let extra_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
+        assert!(coin::value(&extra_coin) == 34567890, 0);
+        transfer::transfer(extra_coin, TEST_VOTER_A_ADDR);
+        assert!(get_votes<FakeMoney>(&delegate_a) == 1200000000, 1);
+        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, &mut delegate_b, ctx);
+        lock_coins(&mut coin_in, TEST_VOTER_C_ADDR, 600000000, &mut delegate_c, ctx);
+        lock_coins(&mut coin_in, TEST_VOTER_D_ADDR, 1100000000, &mut delegate_d, ctx);
+        delegate(&mut coin_store_a, &mut delegate_a, &mut delegate_c, ctx);
+        transfer::transfer(coin_store_a, TEST_VOTER_A_ADDR);
+        assert!(get_votes<FakeMoney>(&delegate_a) == 1800000000, 2);
+        assert!(get_votes<FakeMoney>(&delegate_b) == 400000000, 3);
+        assert!(get_votes<FakeMoney>(&delegate_c) == 0, 4);
+        assert!(get_votes<FakeMoney>(&delegate_d) == 1100000000, 5);
+
+        // Init forum
+        init_forum<FakeMoney>(
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            2000000000,
+            1500000000,
+            ctx
+        );
+        let forum = test_scenario::borrow_mut(&mut test_scenario::take_shared<Forum<FakeMoney>>(scenario));
+
+        // Create proposal from address A
+        create_proposal<FakeMoney, FakeProposalCapability>(
+            forum,
+            b"Test",
+            b"Example",
+            &delegate_a,
+            ctx
+        );
+        let proposal = test_scenario::borrow_mut(&mut test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario));
+
+        // Cast votes
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        cast_vote(forum, proposal, true, &delegate_a, ctx);
+        test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
+        cast_vote(forum, proposal, true, &delegate_b, ctx);
+        test_scenario::next_tx(scenario, &TEST_VOTER_C_ADDR);
+        cast_vote(forum, proposal, false, &delegate_c, ctx);
+        test_scenario::next_tx(scenario, &TEST_VOTER_D_ADDR);
+        cast_vote(forum, proposal, false, &delegate_d, ctx);
+
+        // Execute proposal
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        let _: GovernanceCapability = execute_proposal(
+            forum,
+            proposal,
+            FakeProposalCapability { },
+            ctx
+        );
+
+        // Destory coins since we can't drop them
+        coin::destroy_for_testing(coin_in);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x1000b)]
+    public entry fun test_proposal_cancellation() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        let ctx = test_scenario::ctx(scenario);
+
+        // Mint fake coin
+        let coin_in = coin::mint_for_testing<FakeMoney>(1800000000 + 400000000 + 1100000000, ctx);
+
+        // Register voters
+        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, ctx);
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, ctx);
+        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, ctx);
+        let delegate_a = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        let delegate_b = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        let delegate_c = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+
+        // Lock coins and delegate from C to A
+        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1800000000, &mut delegate_a, ctx);
+        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, &mut delegate_b, ctx);
+        lock_coins(&mut coin_in, TEST_VOTER_C_ADDR, 1100000000, &mut delegate_c, ctx);
+        assert!(get_votes<FakeMoney>(&delegate_a) == 1800000000, 0);
+        assert!(get_votes<FakeMoney>(&delegate_b) == 400000000, 1);
+        assert!(get_votes<FakeMoney>(&delegate_c) == 1100000000, 2);
+
+        // Init forum
+        init_forum<FakeMoney>(
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            1800000000,
+            1500000000,
+            ctx
+        );
+        let forum = test_scenario::borrow_mut(&mut test_scenario::take_shared<Forum<FakeMoney>>(scenario));
+
+        // Create proposal from address A
+        create_proposal<FakeMoney, FakeProposalCapability>(
+            forum,
+            b"Test",
+            b"Example",
+            &delegate_a,
+            ctx
+        );
+        let proposal = test_scenario::borrow_mut(&mut test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario));
+
+        // Cast votes
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        cast_vote(forum, proposal, true, &delegate_a, ctx);
+        test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
+        cast_vote(forum, proposal, false, &delegate_b, ctx);
+        test_scenario::next_tx(scenario, &TEST_VOTER_C_ADDR);
+        cast_vote(forum, proposal, false, &delegate_c, ctx);
+
+        // Execute proposal
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        let _: GovernanceCapability = execute_proposal(
+            forum,
+            proposal,
+            FakeProposalCapability { },
+            ctx
+        );
+
+        // Destory coins since we can't drop them
+        coin::destroy_for_testing(coin_in);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x1000a)]
+    public entry fun test_proposal_lack_of_quorum() {
+        // Test scenario
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        let ctx = test_scenario::ctx(scenario);
+
+        // Mint fake coin
+        let coin_in = coin::mint_for_testing<FakeMoney>(1700000000 + 400000000, ctx);
+
+        // Register voters
+        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, ctx);
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, ctx);
+        let delegate_a = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+        let delegate_b = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+
+        // Lock coins and delegate from C to A
+        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1700000000, &mut delegate_a, ctx);
+        lock_coins(&mut coin_in, TEST_VOTER_B_ADDR, 400000000, &mut delegate_b, ctx);
+        assert!(get_votes<FakeMoney>(&delegate_a) == 1700000000, 0);
+        assert!(get_votes<FakeMoney>(&delegate_b) == 400000000, 1);
+
+        // Init forum
+        init_forum<FakeMoney>(
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            1800000000,
+            1500000000,
+            ctx
+        );
+        let forum = test_scenario::borrow_mut(&mut test_scenario::take_shared<Forum<FakeMoney>>(scenario));
+
+        // Create proposal from address A
+        create_proposal<FakeMoney, FakeProposalCapability>(
+            forum,
+            b"Test",
+            b"Example",
+            &delegate_a,
+            ctx
+        );
+        let proposal = test_scenario::borrow_mut(&mut test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario));
+
+        // Cast votes
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        cast_vote(forum, proposal, true, &delegate_a, ctx);
+        test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
+        cast_vote(forum, proposal, false, &delegate_b, ctx);
+
+        // Execute proposal
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        let _: GovernanceCapability = execute_proposal(
+            forum,
+            proposal,
+            FakeProposalCapability { },
+            ctx
+        );
+
+        // Destory coins since we can't drop them
+        coin::destroy_for_testing(coin_in);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x30001)]
+    public entry fun test_unqualified_proposer() {
+        // Test scenario
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        let ctx = test_scenario::ctx(scenario);
+
+        // Mint fake coin
+        let coin_in = coin::mint_for_testing<FakeMoney>(800000000, ctx);
+
+        // Register voters
+        new_voter<FakeMoney>(TEST_VOTER_A_ADDR, ctx);
+        let delegate_a = test_scenario::take_owned<Delegate<FakeMoney>>(scenario);
+
+        // Lock coins and delegate from C to A
+        lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 800000000, &mut delegate_a, ctx);
+        assert!(get_votes<FakeMoney>(&delegate_a) == 800000000, 0);
+
+        // Init forum
+        init_forum<FakeMoney>(
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            1800000000,
+            1500000000,
+            ctx
+        );
+        let forum = test_scenario::borrow_mut(&mut test_scenario::take_shared<Forum<FakeMoney>>(scenario));
+
+        // Attempt to create proposal from address A
+        create_proposal<FakeMoney, FakeProposalCapability>(
+            forum,
+            b"Test",
+            b"Example",
+            &delegate_a,
+            ctx
+        );
+
+        // Destory coins since we can't drop them
+        coin::destroy_for_testing(coin_in);
     }
 }

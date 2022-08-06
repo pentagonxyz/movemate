@@ -480,9 +480,9 @@ module movemate::governance {
         lock_coins<FakeMoney>(&voter_a, 1800000000);
         lock_coins<FakeMoney>(&voter_b, 400000000);
         lock_coins<FakeMoney>(&voter_c, 1100000000);
-        assert!(get_votes<FakeMoney>(voter_a_address) == 1800000000, 2);
-        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 3);
-        assert!(get_votes<FakeMoney>(voter_c_address) == 1100000000, 5);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 1800000000, 0);
+        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 1);
+        assert!(get_votes<FakeMoney>(voter_c_address) == 1100000000, 2);
 
         // Create proposal from address A
         let forum_address = signer::address_of(&forum_creator);
@@ -548,8 +548,8 @@ module movemate::governance {
         // Lock coins
         lock_coins<FakeMoney>(&voter_a, 1700000000);
         lock_coins<FakeMoney>(&voter_b, 400000000);
-        assert!(get_votes<FakeMoney>(voter_a_address) == 1700000000, 2);
-        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 3);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 1700000000, 0);
+        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 1);
 
         // Create proposal from address A
         let forum_address = signer::address_of(&forum_creator);
@@ -614,8 +614,8 @@ module movemate::governance {
         // Lock coins
         lock_coins<FakeMoney>(&voter_a, 1800000000);
         lock_coins<FakeMoney>(&voter_b, 400000000);
-        assert!(get_votes<FakeMoney>(voter_a_address) == 1800000000, 2);
-        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 3);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 1800000000, 0);
+        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 1);
 
         // Create proposal from address A
         let forum_address = signer::address_of(&forum_creator);
@@ -679,7 +679,7 @@ module movemate::governance {
 
         // Lock coins
         lock_coins<FakeMoney>(&voter_a, 800000000);
-        assert!(get_votes<FakeMoney>(voter_a_address) == 800000000, 2);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 800000000, 0);
 
         // Attempt to create proposal from address A
         let forum_address = signer::address_of(&forum_creator);
