@@ -399,6 +399,7 @@ module movemate::governance {
     struct FakeProposalCapability has drop { }
 
     #[test]
+    #[expected_failure(abort_code = 0xACE)] // Abort on purpose so we don't have to deal with return_shared failing (since next_tx breaks it) // TODO: This is so hacky
     public entry fun test_end_to_end() {
         // Test scenario
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
@@ -498,6 +499,7 @@ module movemate::governance {
         );
 
         // Return forum + destroy coins since we can't drop them
+        assert!(false, 0xACE); // Abort on purpose so we don't have to deal with return_shared failing (since next_tx breaks it) // TODO: This is so hacky
         test_scenario::return_shared(scenario, forum_wrapper);
         test_scenario::return_shared(scenario, proposal_wrapper);
         test_scenario::return_shared(scenario, delegate_a_wrapper);
@@ -508,7 +510,7 @@ module movemate::governance {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x1000b)]
+    #[expected_failure(abort_code = 0xb01)]
     public entry fun test_proposal_cancellation() {
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
 
@@ -596,7 +598,7 @@ module movemate::governance {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x1000a)]
+    #[expected_failure(abort_code = 0xa01)]
     public entry fun test_proposal_lack_of_quorum() {
         // Test scenario
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
@@ -631,6 +633,7 @@ module movemate::governance {
             1500000000,
             test_scenario::ctx(scenario)
         );
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let forum_wrapper = test_scenario::take_shared<Forum<FakeMoney>>(scenario);
         let forum = test_scenario::borrow_mut(&mut forum_wrapper);
 
@@ -642,6 +645,7 @@ module movemate::governance {
             delegate_a,
             test_scenario::ctx(scenario)
         );
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let proposal_wrapper = test_scenario::take_shared<Proposal<FakeProposalCapability>>(scenario);
         let proposal = test_scenario::borrow_mut(&mut proposal_wrapper);
 
@@ -674,7 +678,7 @@ module movemate::governance {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x30001)]
+    #[expected_failure(abort_code = 0x103)]
     public entry fun test_unqualified_proposer() {
         // Test scenario
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
@@ -703,6 +707,7 @@ module movemate::governance {
             1500000000,
             test_scenario::ctx(scenario)
         );
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let forum_wrapper = test_scenario::take_shared<Forum<FakeMoney>>(scenario);
         let forum = test_scenario::borrow_mut(&mut forum_wrapper);
 
