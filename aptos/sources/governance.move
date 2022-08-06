@@ -262,7 +262,7 @@ module movemate::governance {
     /// Requirements:
     /// - `timestamp` must have already happened
     public fun get_past_votes<CoinType>(account: address, timestamp: u64): u64 acquires Checkpoints {
-        assert!(timestamp < timestamp::now_seconds(), error::invalid_argument(ETIMESTAMP_IN_FUTURE));
+        assert!(timestamp <= timestamp::now_seconds(), error::invalid_argument(ETIMESTAMP_IN_FUTURE));
         checkpoints_lookup<CoinType>(account, timestamp)
     }
 
@@ -319,23 +319,35 @@ module movemate::governance {
     /// @dev Internal function to add a votes checkpoint.
     fun write_checkpoint<CoinType>(account: address, subtract_not_add: bool, delta: u64): (u64, u64) acquires Checkpoints {
         let ckpts = &mut borrow_global_mut<Checkpoints<CoinType>>(account).checkpoints;
-
         let pos = vector::length(ckpts);
-        let last_ckpt = vector::borrow_mut(ckpts, pos - 1);
-        let old_weight = if (pos == 0) 0 else last_ckpt.votes;
-        let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
         let now = timestamp::now_seconds();
 
-        if (pos > 0 && last_ckpt.from_timestamp == now) {
-            *&mut last_ckpt.votes = new_weight;
+        if (pos > 0) {
+            let last_ckpt = vector::borrow_mut(ckpts, pos - 1);
+            let old_weight = last_ckpt.votes;
+            let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
+
+            if (last_ckpt.from_timestamp == now) {
+                *&mut last_ckpt.votes = new_weight;
+            } else {
+                vector::push_back(ckpts, Checkpoint {
+                    from_timestamp: now,
+                    votes: new_weight
+                });
+            };
+
+            (old_weight, new_weight)
         } else {
+            let old_weight = 0;
+            let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
+
             vector::push_back(ckpts, Checkpoint {
                 from_timestamp: now,
                 votes: new_weight
             });
-        };
 
-        (old_weight, new_weight)
+            (old_weight, new_weight)
+        }
     }
 
     #[test_only]

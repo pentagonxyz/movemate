@@ -341,14 +341,13 @@ module movemate::governance {
     /// @dev Internal function to add a votes checkpoint.
     fun write_checkpoint<CoinType>(voter: &mut Delegate<CoinType>, subtract_not_add: bool, delta: u64, ctx: &mut TxContext): (u64, u64) {
         let ckpts = &mut voter.checkpoints;
-
         let pos = vector::length(ckpts);
+        let now = tx_context::epoch(ctx);
 
         if (pos > 0) {
             let last_ckpt = vector::borrow_mut(ckpts, pos - 1);
             let old_weight = last_ckpt.votes;
             let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
-            let now = tx_context::epoch(ctx);
 
             if (last_ckpt.from_timestamp == now) {
                 *&mut last_ckpt.votes = new_weight;
@@ -363,7 +362,6 @@ module movemate::governance {
         } else {
             let old_weight = 0;
             let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
-            let now = tx_context::epoch(ctx);
 
             vector::push_back(ckpts, Checkpoint {
                 from_timestamp: now,
