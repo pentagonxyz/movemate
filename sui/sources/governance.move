@@ -343,21 +343,35 @@ module movemate::governance {
         let ckpts = &mut voter.checkpoints;
 
         let pos = vector::length(ckpts);
-        let last_ckpt = vector::borrow_mut(ckpts, pos - 1);
-        let old_weight = if (pos == 0) 0 else last_ckpt.votes;
-        let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
-        let now = tx_context::epoch(ctx);
 
-        if (pos > 0 && last_ckpt.from_timestamp == now) {
-            *&mut last_ckpt.votes = new_weight;
+        if (pos > 0) {
+            let last_ckpt = vector::borrow_mut(ckpts, pos - 1);
+            let old_weight = last_ckpt.votes;
+            let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
+            let now = tx_context::epoch(ctx);
+
+            if (last_ckpt.from_timestamp == now) {
+                *&mut last_ckpt.votes = new_weight;
+            } else {
+                vector::push_back(ckpts, Checkpoint {
+                    from_timestamp: now,
+                    votes: new_weight
+                });
+            };
+
+            (old_weight, new_weight)
         } else {
+            let old_weight = 0;
+            let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
+            let now = tx_context::epoch(ctx);
+
             vector::push_back(ckpts, Checkpoint {
                 from_timestamp: now,
                 votes: new_weight
             });
-        };
 
-        (old_weight, new_weight)
+            (old_weight, new_weight)
+        }
     }
 
     #[test_only]
@@ -394,12 +408,16 @@ module movemate::governance {
 
         // Register voters
         new_voter<FakeMoney>(TEST_VOTER_A_ADDR, test_scenario::ctx(scenario));
-        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
-        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, test_scenario::ctx(scenario));
-        new_voter<FakeMoney>(TEST_VOTER_D_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let delegate_a_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
         let delegate_b_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_C_ADDR);
         let delegate_c_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_D_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_D_ADDR);
         let delegate_d_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
         let delegate_a = test_scenario::borrow_mut(&mut delegate_a_wrapper);
         let delegate_b = test_scenario::borrow_mut(&mut delegate_b_wrapper);
@@ -408,8 +426,10 @@ module movemate::governance {
 
         // Lock coins, test unlocking coins, and delegate from C to A
         lock_coins(&mut coin_in, TEST_VOTER_A_ADDR, 1234567890, delegate_a, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let coin_store_a = test_scenario::take_owned<CoinStore<FakeMoney>>(scenario);
         unlock_coins<FakeMoney>(&mut coin_store_a, TEST_VOTER_A_ADDR, 34567890, delegate_a, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let extra_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
         assert!(coin::value(&extra_coin) == 34567890, 0);
         test_scenario::return_owned(scenario, extra_coin);
@@ -493,10 +513,13 @@ module movemate::governance {
 
         // Register voters
         new_voter<FakeMoney>(TEST_VOTER_A_ADDR, test_scenario::ctx(scenario));
-        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
-        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let delegate_a_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
         let delegate_b_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_C_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_C_ADDR);
         let delegate_c_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
         let delegate_a = test_scenario::borrow_mut(&mut delegate_a_wrapper);
         let delegate_b = test_scenario::borrow_mut(&mut delegate_b_wrapper);
@@ -577,8 +600,10 @@ module movemate::governance {
 
         // Register voters
         new_voter<FakeMoney>(TEST_VOTER_A_ADDR, test_scenario::ctx(scenario));
-        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let delegate_a_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
+        new_voter<FakeMoney>(TEST_VOTER_B_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_B_ADDR);
         let delegate_b_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
         let delegate_a = test_scenario::borrow_mut(&mut delegate_a_wrapper);
         let delegate_b = test_scenario::borrow_mut(&mut delegate_b_wrapper);
@@ -653,6 +678,7 @@ module movemate::governance {
 
         // Register voters
         new_voter<FakeMoney>(TEST_VOTER_A_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_VOTER_A_ADDR);
         let delegate_a_wrapper = test_scenario::take_shared<Delegate<FakeMoney>>(scenario);
         let delegate_a = test_scenario::borrow_mut(&mut delegate_a_wrapper);
 
