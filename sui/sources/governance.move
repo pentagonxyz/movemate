@@ -85,6 +85,13 @@ module movemate::governance {
         forum_id: ID
     }
 
+    struct ObjectStore<T> has key {
+        info: Info,
+        forum_id: ID,
+        store: VecMap<u64, T>,
+        next_id: u64
+    }
+
     struct CoinStore<phantom CoinType> has key {
         info: Info,
         delegatee: address,
@@ -128,6 +135,22 @@ module movemate::governance {
             approval_threshold,
             cancellation_threshold
         });
+    }
+
+    // Creates a store for the specified object type in the specified governance forum.
+    public fun create_object_store<CoinType, T: store>(forum: &Forum<CoinType>, ctx: &mut TxContext) {
+        transfer::share_object(ObjectStore<T> {
+            info: object::new(ctx),
+            forum_id: *object::info_id(&forum.info),
+            store: vec_map::empty(),
+            next_id: 0
+        });
+    }
+
+    // Stores an object in the specified governance forum.
+    public fun deposit_object<T: store>(store: &mut ObjectStore<T>, obj: T) {
+        vec_map::insert(&mut store.store, store.next_id, obj);
+        *&mut store.next_id = store.next_id + 1;
     }
 
     /// @notice Creates a new Delegate object.
@@ -271,6 +294,22 @@ module movemate::governance {
 
         // Return GovernanceCapability with forum ID
         GovernanceCapability { forum_id: *object::info_id(&forum.info) }
+    }
+
+    public fun borrow_objects<T: store>(
+        object_store: &ObjectStore<T>,
+        governance_capability: &GovernanceCapability
+    ): &VecMap<u64, T> {
+        assert!(object_store.forum_id == governance_capability.forum_id, errors::invalid_argument(EFORUM_ARGUMENT_MISMATCH));
+        &object_store.store
+    }
+
+    public fun borrow_objects_mut<T: store>(
+        object_store: &mut ObjectStore<T>,
+        governance_capability: &GovernanceCapability
+    ): &mut VecMap<u64, T> {
+        assert!(object_store.forum_id == governance_capability.forum_id, errors::invalid_argument(EFORUM_ARGUMENT_MISMATCH));
+        &mut object_store.store
     }
 
     /// @dev Get the address `account` is currently delegating to.
