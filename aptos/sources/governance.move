@@ -57,6 +57,12 @@ module movemate::governance {
     /// @dev When trying to `get_past_votes` for a timestamp in the future.
     const ETIMESTAMP_IN_FUTURE: u64 = 10;
 
+    /// @dev When trying initialize a voter `Delegate` that already exists.
+    const EVOTER_ALREADY_EXISTS: u64 = 11;
+
+    /// @dev When trying to delegate to an unregistered delegatee--to resolve this error, call `new_voter` on the desired delegatee.
+    const EDELEGATEE_NOT_REGISTERED: u64 = 12;
+
     struct Forum<phantom CoinType> has key {
         voting_delay: u64,
         voting_period: u64,
@@ -130,6 +136,14 @@ module movemate::governance {
         });
     }
 
+    /// @notice Creates a new Delegate object.
+    public entry fun new_voter<CoinType>(voter: &signer) {
+        let voter_address = signer::address_of(voter);
+        assert!(!exists<Delegate<CoinType>>(voter_address), error::already_exists(EVOTER_ALREADY_EXISTS));
+        move_to(voter, Delegate<CoinType> { delegatee: voter_address });
+        move_to(voter, Checkpoints<CoinType> { checkpoints: vector::empty() });
+    }
+
     /// @notice Lock your coins for voting in the specified forum.
     public entry fun lock_coins<CoinType>(account: &signer, amount: u64) acquires CoinStore, Checkpoints, Delegate {
         // Move coin in
@@ -143,6 +157,10 @@ module movemate::governance {
         };
 
         // Update checkpoints
+        if (!exists<Delegate<CoinType>>(sender)) {
+            move_to(account, Delegate<CoinType> { delegatee: sender });
+            move_to(account, Checkpoints<CoinType> { checkpoints: vector::empty() });
+        };
         write_checkpoint<CoinType>(borrow_global<Delegate<CoinType>>(sender).delegatee, false, amount);
     }
 
@@ -310,9 +328,11 @@ module movemate::governance {
         } else {
             // Add delegatee
             move_to(delegator, Delegate<CoinType> { delegatee });
+            move_to(delegator, Checkpoints<CoinType> { checkpoints: vector::empty() });
         };
 
         // Add votes to new delegatee
+        assert!(exists<Checkpoints<CoinType>>(delegatee), error::not_found(EDELEGATEE_NOT_REGISTERED));
         write_checkpoint<CoinType>(delegatee, false, delegator_balance);
     }
 
@@ -364,7 +384,7 @@ module movemate::governance {
         timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, voter_d = @0x1004, coin_creator = @0x1005)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, voter_d = @0x1004, coin_creator = @movemate)]
     public entry fun test_end_to_end(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, voter_d: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
@@ -454,7 +474,7 @@ module movemate::governance {
         });
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, coin_creator = @0x1004)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, coin_creator = @movemate)]
     #[expected_failure(abort_code = 0x30009)]
     public entry fun test_proposal_cancellation(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
         // mint fake coin
@@ -526,7 +546,7 @@ module movemate::governance {
         });
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @0x1003)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @movemate)]
     #[expected_failure(abort_code = 0x30008)]
     public entry fun test_proposal_lack_of_quorum(forum_creator: signer, voter_a: signer, voter_b: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
         // mint fake coin
@@ -592,7 +612,7 @@ module movemate::governance {
         });
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @0x1003)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @movemate)]
     #[expected_failure(abort_code = 0x50007)]
     public entry fun test_proposal_wrong_script_hash(forum_creator: signer, voter_a: signer, voter_b: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
         // mint fake coin
@@ -661,7 +681,7 @@ module movemate::governance {
         });
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, coin_creator = @0x1002)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, coin_creator = @movemate)]
     #[expected_failure(abort_code = 0x50000)]
     public entry fun test_unqualified_proposer(forum_creator: signer, voter_a: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
         // mint fake coin

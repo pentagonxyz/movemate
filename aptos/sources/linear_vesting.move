@@ -191,7 +191,7 @@ module movemate::linear_vesting {
         timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
     }
 
-    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @0x1002)]
+    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @movemate)]
     public entry fun test_end_to_end(admin: signer, beneficiary: signer, coin_creator: signer) acquires WalletInfoCollection, CoinStoreCollection {
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
@@ -243,7 +243,7 @@ module movemate::linear_vesting {
         init_wallet(&admin, beneficiary2_address, timestamp::now_seconds(), 172800, true);
     }
 
-    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @0x1002)]
+    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @movemate)]
     #[expected_failure(abort_code = 0x50000)]
     public entry fun test_no_clawback(admin: signer, beneficiary: signer, coin_creator: signer) acquires WalletInfoCollection, CoinStoreCollection {
         // mint fake coin
