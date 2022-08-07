@@ -83,6 +83,9 @@ module movemate::virtual_block {
     }
 
     #[test_only]
+    use sui::test_scenario;
+
+    #[test_only]
     struct FakeEntry has store, drop {
         stuff: u64
     }
@@ -108,7 +111,7 @@ module movemate::virtual_block {
         let coin_in_b = coin::mint_for_testing<FakeMoney>(5678000000, test_scenario::ctx(scenario));
 
         // create mempool
-        let mempool = new_mempool<FakeMoney, FakeEntry>(1 << 14, 5, ctx); // 25% miner fee rate and 5 epoch block time
+        let mempool = new_mempool<FakeMoney, FakeEntry>(1 << 14, 5, test_scenario::ctx(scenario)); // 25% miner fee rate and 5 epoch block time
 
         // add entry
         add_entry(&mut mempool, FakeEntry { stuff: 1234 }, coin_in_a);
@@ -123,8 +126,11 @@ module movemate::virtual_block {
         test_scenario::next_epoch(scenario);
         test_scenario::next_epoch(scenario);
         test_scenario::next_epoch(scenario);
-        let cb = mine_entries(&mut mempool, TEST_MINER_ADDR, ctx);
-        assert!(coin::balance<FakeMoney>(TEST_MINER_ADDR) == (1234000000 + 5678000000) / 4, 0);
+        let cb = mine_entries(&mut mempool, TEST_MINER_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_MINER_ADDR);
+        let coin_miner = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
+        assert!(coin::value(&coin_miner) == (1234000000 + 5678000000) / 4, 0);
+        test_scenario::return_owned(scenario, coin_miner);
 
         // Loop through highest to lowest bid
         let last_bid = 0xFFFFFFFFFFFFFFFF;
@@ -138,29 +144,29 @@ module movemate::virtual_block {
         crit_bit::destroy_empty(cb);
 
         // extract mempool fees
-        let mempool_fees = extract_mempool_fees(&mut mempool);
+        let mempool_fees = extract_mempool_fees(&mut mempool, test_scenario::ctx(scenario));
         assert!(coin::value(&mempool_fees) == (1234000000 + 5678000000) - ((1234000000 + 5678000000) / 4), 2);
 
         // clean up: we can't drop coins so we burn them
         coin::destroy_for_testing(mempool_fees);
 
         // clean up: we can't drop mempool so we store it
-        transfer::transfer(coin_creator_address, TempMempool {
+        sui::transfer::transfer(TempMempool {
             mempool,
-        });
+        }, TEST_MINER_ADDR);
     }
 
-    #[test(miner = @0x1000, coin_creator = @0x1001)]
-    #[expected_failure(abort_code = 0x50000)]
-    public entry fun test_mine_before_time(miner: signer, coin_creator: signer) {
+    #[test]
+    #[expected_failure(abort_code = 0x001)]
+    public entry fun test_mine_before_time() {
         // Test scenario
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        let scenario = &mut test_scenario::begin(&TEST_MINER_ADDR);
 
         // Mint fake coin
         let coin_in = coin::mint_for_testing<FakeMoney>(1234000000, test_scenario::ctx(scenario));
 
         // create mempool
-        let mempool = new_mempool<FakeMoney, FakeEntry>(1 << 14, 5, ctx); // 25% miner fee rate and 5 epoch block time
+        let mempool = new_mempool<FakeMoney, FakeEntry>(1 << 14, 5, test_scenario::ctx(scenario)); // 25% miner fee rate and 5 epoch block time
 
         // add entry
         add_entry(&mut mempool, FakeEntry { stuff: 1234 }, coin_in);
@@ -169,15 +175,15 @@ module movemate::virtual_block {
         test_scenario::next_epoch(scenario);
         test_scenario::next_epoch(scenario);
         test_scenario::next_epoch(scenario);
-        let cb = mine_entries(&mut mempool, TEST_MINER_ADDR, ctx);
+        let cb = mine_entries(&mut mempool, TEST_MINER_ADDR, test_scenario::ctx(scenario));
 
         // destroy cb tree
         crit_bit::pop(&mut cb, 1234);
         crit_bit::destroy_empty(cb);
 
         // clean up: we can't drop mempool so we store it
-        transfer::transfer(coin_creator_address, TempMempool {
+        sui::transfer::transfer(TempMempool {
             mempool,
-        });
+        }, TEST_MINER_ADDR);
     }
 }
