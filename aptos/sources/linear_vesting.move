@@ -74,9 +74,14 @@ module movemate::linear_vesting {
     /// @dev Deposits `coin_in` to a wallet.
     public fun deposit<T>(admin: address, beneficiary: address, index: u64, coin_in: Coin<T>) acquires CoinStoreCollection {
         let coin_stores = &mut borrow_global_mut<CoinStoreCollection<T>>(admin).wallets;
+        if (!iterable_table::contains(coin_stores, beneficiary)) iterable_table::add(coin_stores, beneficiary, table::new());
         let collection = iterable_table::borrow_mut(coin_stores, beneficiary);
-        let coin_store = table::borrow_mut(collection, index);
-        coin::merge(&mut coin_store.coin, coin_in)
+        if (table::contains(collection, index)) {
+            let coin_store = table::borrow_mut(collection, index);
+            coin::merge(&mut coin_store.coin, coin_in);
+        } else {
+            table::add(collection, index, CoinStore { coin: coin_in, released: 0 });
+        }
     }
 
     /// @dev Transfers in `amount` coins to a wallet from `depositor`.
@@ -223,7 +228,8 @@ module movemate::linear_vesting {
         fast_forward_seconds(7200);
         coin::register_for_test<FakeMoney>(&admin);
         clawback<FakeMoney>(&admin, beneficiary_address, 0);
-        assert!(coin::balance<FakeMoney>(admin_address) == 102880658, 1);
+        assert!(coin::balance<FakeMoney>(beneficiary_address) == 154320986, 1);
+        assert!(coin::balance<FakeMoney>(admin_address) == 1234567890 - 154320986, 2);
 
         // clean up: we can't drop mint/burn caps so we store them
         move_to(&coin_creator, FakeMoneyCapabilities {
@@ -267,13 +273,14 @@ module movemate::linear_vesting {
 
         // init wallet and asset
         let beneficiary_address = signer::address_of(&beneficiary);
-        init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, true);
+        init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, false);
         init_asset<FakeMoney>(&admin);
         let admin_address = signer::address_of(&admin);
         deposit<FakeMoney>(admin_address, beneficiary_address, 0, coin_in);
 
         // fast forward and claw back (should fail)
         fast_forward_seconds(3600);
+        coin::register_for_test<FakeMoney>(&beneficiary);
         coin::register_for_test<FakeMoney>(&admin);
         clawback<FakeMoney>(&admin, beneficiary_address, 0);
 
