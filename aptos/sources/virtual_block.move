@@ -104,8 +104,11 @@ module movemate::virtual_block {
         timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_microseconds);
     }
 
-    #[test(miner = @0x1000, coin_creator = @movemate)]
-    public entry fun test_end_to_end(miner: signer, coin_creator: signer) {
+    #[test(miner = @0x1000, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    public entry fun test_end_to_end(miner: signer, coin_creator: signer, aptos_framework: signer) {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
@@ -162,9 +165,12 @@ module movemate::virtual_block {
         });
     }
 
-    #[test(miner = @0x1000, coin_creator = @movemate)]
-    #[expected_failure(abort_code = 0x50000)]
-    public entry fun test_mine_before_time(miner: signer, coin_creator: signer) {
+    #[test(miner = @0x1000, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    #[expected_failure(abort_code = 0x30000)]
+    public entry fun test_mine_before_time(miner: signer, coin_creator: signer, aptos_framework: signer) {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,

@@ -191,8 +191,11 @@ module movemate::linear_vesting {
         timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
     }
 
-    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @movemate)]
-    public entry fun test_end_to_end(admin: signer, beneficiary: signer, coin_creator: signer) acquires WalletInfoCollection, CoinStoreCollection {
+    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    public entry fun test_end_to_end(admin: signer, beneficiary: signer, coin_creator: signer, aptos_framework: signer) acquires WalletInfoCollection, CoinStoreCollection {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
@@ -229,8 +232,11 @@ module movemate::linear_vesting {
         });
     }
 
-    #[test(admin = @0x1000, beneficiary = @0x1001, beneficiary2 = @0x1002)]
-    public entry fun test_multiple_wallets(admin: signer, beneficiary: signer, beneficiary2: signer) acquires WalletInfoCollection {
+    #[test(admin = @0x1000, beneficiary = @0x1001, beneficiary2 = @0x1002, aptos_framework = @aptos_framework)]
+    public entry fun test_multiple_wallets(admin: signer, beneficiary: signer, beneficiary2: signer, aptos_framework: signer) acquires WalletInfoCollection {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // init wallet and asset
         let beneficiary_address = signer::address_of(&beneficiary);
         init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, true);
@@ -243,9 +249,12 @@ module movemate::linear_vesting {
         init_wallet(&admin, beneficiary2_address, timestamp::now_seconds(), 172800, true);
     }
 
-    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @movemate)]
+    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @movemate, aptos_framework = @aptos_framework)]
     #[expected_failure(abort_code = 0x50000)]
-    public entry fun test_no_clawback(admin: signer, beneficiary: signer, coin_creator: signer) acquires WalletInfoCollection, CoinStoreCollection {
+    public entry fun test_no_clawback(admin: signer, beneficiary: signer, coin_creator: signer, aptos_framework: signer) acquires WalletInfoCollection, CoinStoreCollection {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,

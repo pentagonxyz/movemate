@@ -384,8 +384,11 @@ module movemate::governance {
         timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, voter_d = @0x1004, coin_creator = @movemate)]
-    public entry fun test_end_to_end(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, voter_d: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, voter_d = @0x1004, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    public entry fun test_end_to_end(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, voter_d: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
@@ -474,9 +477,12 @@ module movemate::governance {
         });
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, coin_creator = @movemate)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, coin_creator = @movemate, aptos_framework = @aptos_framework)]
     #[expected_failure(abort_code = 0x30009)]
-    public entry fun test_proposal_cancellation(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+    public entry fun test_proposal_cancellation(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
@@ -546,9 +552,12 @@ module movemate::governance {
         });
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @movemate)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @movemate, aptos_framework = @aptos_framework)]
     #[expected_failure(abort_code = 0x30008)]
-    public entry fun test_proposal_lack_of_quorum(forum_creator: signer, voter_a: signer, voter_b: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+    public entry fun test_proposal_lack_of_quorum(forum_creator: signer, voter_a: signer, voter_b: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
@@ -612,9 +621,12 @@ module movemate::governance {
         });
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @movemate)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @movemate, aptos_framework = @aptos_framework)]
     #[expected_failure(abort_code = 0x50007)]
-    public entry fun test_proposal_wrong_script_hash(forum_creator: signer, voter_a: signer, voter_b: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+    public entry fun test_proposal_wrong_script_hash(forum_creator: signer, voter_a: signer, voter_b: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
@@ -652,8 +664,8 @@ module movemate::governance {
         // Create proposal from address A
         let forum_address = signer::address_of(&forum_creator);
         let script_hash = transaction_context::get_script_hash();
-        let random_byte_ref = vector::borrow_mut(&mut script_hash, 7);
-        *random_byte_ref = if (*random_byte_ref == 123) 45 else 123; // Mess up the script hash on purpose
+        let byte_0_ref = vector::borrow_mut(&mut script_hash, 0);
+        *byte_0_ref = if (*byte_0_ref == 123) 45 else 123; // Mess up the script hash on purpose
         create_proposal<FakeMoney>(
             forum_address,
             &voter_a,
@@ -681,9 +693,12 @@ module movemate::governance {
         });
     }
 
-    #[test(forum_creator = @0x1000, voter_a = @0x1001, coin_creator = @movemate)]
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, coin_creator = @movemate, aptos_framework = @aptos_framework)]
     #[expected_failure(abort_code = 0x50000)]
-    public entry fun test_unqualified_proposer(forum_creator: signer, voter_a: signer, coin_creator: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+    public entry fun test_unqualified_proposer(forum_creator: signer, voter_a: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
         // mint fake coin
         let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
