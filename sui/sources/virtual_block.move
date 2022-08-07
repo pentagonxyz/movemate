@@ -17,7 +17,7 @@ module movemate::virtual_block {
     const EBLOCK_TIME_NOT_PASSED: u64 = 0;
 
     /// @notice Struct for a virtual block with entries sorted by bids.
-    struct Mempool<phantom BidAssetType, EntryType> {
+    struct Mempool<phantom BidAssetType, EntryType> has store {
         blocks: vector<CB<vector<EntryType>>>,
         current_block_bids: Coin<BidAssetType>,
         last_block_timestamp: u64,
@@ -80,5 +80,110 @@ module movemate::virtual_block {
 
         // Return entries of last block
         last_block
+    }
+
+    #[test_only]
+    use sui::test_scenario;
+
+    #[test_only]
+    struct FakeEntry has store, drop {
+        stuff: u64
+    }
+
+    #[test_only]
+    struct FakeMoney { }
+
+    #[test_only]
+    struct TempMempool has key {
+        mempool: Mempool<FakeMoney, FakeEntry>
+    }
+
+    #[test_only]
+    const TEST_MINER_ADDR: address = @0xA11CE;
+
+    #[test]
+    public entry fun test_end_to_end() {
+        // Test scenario
+        let scenario = &mut test_scenario::begin(&TEST_MINER_ADDR);
+
+        // Mint fake coin
+        let coin_in_a = coin::mint_for_testing<FakeMoney>(1234000000, test_scenario::ctx(scenario));
+        let coin_in_b = coin::mint_for_testing<FakeMoney>(5678000000, test_scenario::ctx(scenario));
+
+        // create mempool
+        let mempool = new_mempool<FakeMoney, FakeEntry>(1 << 14, 5, test_scenario::ctx(scenario)); // 25% miner fee rate and 5 epoch block time
+
+        // add entry
+        add_entry(&mut mempool, FakeEntry { stuff: 1234 }, coin_in_a);
+
+        // fast forward and add entry
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        add_entry(&mut mempool, FakeEntry { stuff: 5678 }, coin_in_b);
+
+        // fast forward and mine block
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        let cb = mine_entries(&mut mempool, TEST_MINER_ADDR, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_MINER_ADDR);
+        let coin_miner = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
+        assert!(coin::value(&coin_miner) == (1234000000 + 5678000000) / 4, 0);
+        test_scenario::return_owned(scenario, coin_miner);
+
+        // Loop through highest to lowest bid
+        let last_bid = 0xFFFFFFFFFFFFFFFF;
+
+        while (!crit_bit::is_empty(&cb)) {
+            let bid = crit_bit::max_key(&cb);
+            assert!(bid < last_bid, 1);
+            crit_bit::pop(&mut cb, bid);
+        };
+
+        crit_bit::destroy_empty(cb);
+
+        // extract mempool fees
+        let mempool_fees = extract_mempool_fees(&mut mempool, test_scenario::ctx(scenario));
+        assert!(coin::value(&mempool_fees) == (1234000000 + 5678000000) - ((1234000000 + 5678000000) / 4), 2);
+
+        // clean up: we can't drop coins so we burn them
+        coin::destroy_for_testing(mempool_fees);
+
+        // clean up: we can't drop mempool so we store it
+        sui::transfer::transfer(TempMempool {
+            mempool,
+        }, TEST_MINER_ADDR);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x001)]
+    public entry fun test_mine_before_time() {
+        // Test scenario
+        let scenario = &mut test_scenario::begin(&TEST_MINER_ADDR);
+
+        // Mint fake coin
+        let coin_in = coin::mint_for_testing<FakeMoney>(1234000000, test_scenario::ctx(scenario));
+
+        // create mempool
+        let mempool = new_mempool<FakeMoney, FakeEntry>(1 << 14, 5, test_scenario::ctx(scenario)); // 25% miner fee rate and 5 epoch block time
+
+        // add entry
+        add_entry(&mut mempool, FakeEntry { stuff: 1234 }, coin_in);
+
+        // fast forward and try to mine
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        let cb = mine_entries(&mut mempool, TEST_MINER_ADDR, test_scenario::ctx(scenario));
+
+        // destroy cb tree
+        crit_bit::pop(&mut cb, 1234);
+        crit_bit::destroy_empty(cb);
+
+        // clean up: we can't drop mempool so we store it
+        sui::transfer::transfer(TempMempool {
+            mempool,
+        }, TEST_MINER_ADDR);
     }
 }

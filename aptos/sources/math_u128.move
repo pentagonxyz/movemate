@@ -106,4 +106,45 @@ module movemate::math_u128 {
         };
         result
     }
+
+    #[test]
+    fun test_exp() {
+        assert!(exp(0, 0) == 1, 0); // TODO: Should this be undefined?
+        assert!(exp(0, 1) == 0, 1);
+        assert!(exp(0, 5) == 0, 2);
+
+        assert!(exp(1, 0) == 1, 3);
+        assert!(exp(1, 1) == 1, 4);
+        assert!(exp(1, 5) == 1, 5);
+
+        assert!(exp(2, 0) == 1, 6);
+        assert!(exp(2, 1) == 2, 7);
+        assert!(exp(2, 5) == 32, 8);
+        
+        assert!(exp(123, 0) == 1, 9);
+        assert!(exp(123, 1) == 123, 10);
+        assert!(exp(123, 5) == 28153056843, 11);
+
+        assert!(exp(45, 6) == 8303765625, 12);
+    }
+
+    #[test]
+    fun test_sqrt() {
+        assert!(sqrt(0) == 0, 0);
+        assert!(sqrt(1) == 1, 1);
+
+        assert!(sqrt(2) == 1, 2);
+        assert!(sqrt_rounding(2, ROUNDING_UP) == 2, 3);
+
+        assert!(sqrt(169) == 13, 4);
+        assert!(sqrt_rounding(169, ROUNDING_UP) == 13, 5);
+        assert!(sqrt_rounding(170, ROUNDING_UP) == 14, 6);
+        assert!(sqrt(195) == 13, 7);
+        assert!(sqrt(196) == 14, 8);
+
+        assert!(sqrt(55423988929) == 235423, 9);
+        assert!(sqrt_rounding(55423988929, ROUNDING_UP) == 235423, 10);
+        assert!(sqrt(55423988930) == 235423, 11);
+        assert!(sqrt_rounding(55423988930, ROUNDING_UP) == 235424, 12);
+    }
 }

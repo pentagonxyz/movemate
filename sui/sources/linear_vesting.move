@@ -96,4 +96,89 @@ module movemate::linear_vesting {
         if (timestamp > start + duration) return total_allocation;
         (total_allocation * (timestamp - start)) / duration
     }
+
+    #[test_only]
+    use sui::test_scenario;
+
+    #[test_only]
+    const TEST_ADMIN_ADDR: address = @0xA11CE;
+
+    #[test_only]
+    const TEST_BENEFICIARY_ADDR: address = @0xB0B;
+
+    #[test_only]
+    struct FakeMoney { }
+
+    #[test]
+    public entry fun test_end_to_end() {
+        // Test scenario
+        let scenario = &mut test_scenario::begin(&TEST_ADMIN_ADDR);
+
+        // Mint fake coin
+        let coin_in = coin::mint_for_testing<FakeMoney>(1234567890, test_scenario::ctx(scenario));
+
+        // init wallet and asset
+        init_wallet<FakeMoney>(TEST_BENEFICIARY_ADDR, tx_context::epoch(test_scenario::ctx(scenario)), 7, option::some(TEST_ADMIN_ADDR), test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
+        let wallet_wrapper = test_scenario::take_shared<Wallet<FakeMoney>>(scenario);
+        let wallet = test_scenario::borrow_mut(&mut wallet_wrapper);
+        deposit<FakeMoney>(wallet, coin_in);
+
+        // fast forward and release
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        release<FakeMoney>(wallet, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, wallet_wrapper);
+
+        // Ensure release worked as planned
+        test_scenario::next_tx(scenario, &TEST_BENEFICIARY_ADDR);
+        let beneficiary_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
+        assert!(coin::value<FakeMoney>(&beneficiary_coin) == 352733682, 0);
+        test_scenario::return_owned(scenario, beneficiary_coin);
+
+        // fast forward and claw back vesting
+        test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        let wallet_wrapper = test_scenario::take_shared<Wallet<FakeMoney>>(scenario);
+        let wallet = test_scenario::borrow_mut(&mut wallet_wrapper);
+        clawback<FakeMoney>(wallet, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, wallet_wrapper);
+
+        // Ensure clawback worked as planned
+        test_scenario::next_tx(scenario, &TEST_BENEFICIARY_ADDR);
+        let beneficiary_coin = test_scenario::take_last_created_owned<Coin<FakeMoney>>(scenario);
+        assert!(coin::value<FakeMoney>(&beneficiary_coin) == 881834207 - 352733682, 1);
+        test_scenario::return_owned(scenario, beneficiary_coin);
+        test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
+        let admin_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
+        assert!(coin::value<FakeMoney>(&admin_coin) == 1234567890 - 881834207, 2);
+        test_scenario::return_owned(scenario, admin_coin);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x002)]
+    public entry fun test_no_clawback() {
+        // Test scenario
+        let scenario = &mut test_scenario::begin(&TEST_ADMIN_ADDR);
+
+        // Mint fake coin
+        let coin_in = coin::mint_for_testing<FakeMoney>(1234567890, test_scenario::ctx(scenario));
+
+        // init wallet and asset
+        init_wallet<FakeMoney>(TEST_BENEFICIARY_ADDR, tx_context::epoch(test_scenario::ctx(scenario)), 7, option::none(), test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
+        let wallet_wrapper = test_scenario::take_shared<Wallet<FakeMoney>>(scenario);
+        let wallet = test_scenario::borrow_mut(&mut wallet_wrapper);
+        deposit<FakeMoney>(wallet, coin_in);
+
+        // fast forward and claw back (should fail)
+        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario);
+        clawback<FakeMoney>(wallet, test_scenario::ctx(scenario));
+
+        // clean up: return shared wallet object
+        test_scenario::return_shared(scenario, wallet_wrapper);
+    }
 }

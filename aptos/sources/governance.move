@@ -6,6 +6,7 @@
 /// Then, when it's time to upgrade, create a governance proposal from your new module that calls `create_proposal<CoinType, ProposalCapabilityType>()`.
 /// Tokenholders call `cast_vote<CoinType, ProposalCapabilityType>()` to cast votes.
 /// When the proposal passes, call `execute_proposal<CoinType, ProposalCapabilityType>()` to retrieve the forum's `signer`.
+/// @dev TODO: Finish tests.
 module movemate::governance {
     use std::error;
     use std::signer;
@@ -55,6 +56,12 @@ module movemate::governance {
 
     /// @dev When trying to `get_past_votes` for a timestamp in the future.
     const ETIMESTAMP_IN_FUTURE: u64 = 10;
+
+    /// @dev When trying initialize a voter `Delegate` that already exists.
+    const EVOTER_ALREADY_EXISTS: u64 = 11;
+
+    /// @dev When trying to delegate to an unregistered delegatee--to resolve this error, call `new_voter` on the desired delegatee.
+    const EDELEGATEE_NOT_REGISTERED: u64 = 12;
 
     struct Forum<phantom CoinType> has key {
         voting_delay: u64,
@@ -108,8 +115,8 @@ module movemate::governance {
         cancellation_threshold: u64
     ) {
         let type_info = type_info::type_of<CoinType>();
-        let seed = b"Movemate::Governance::Forum<";
-        vector::append(&mut seed, bcs::to_bytes(&type_info::account_address(&type_info)));
+        let seed = b"movemate::governance::Forum<";
+        vector::append(&mut seed, bcs::to_bytes(&type_info::account_address(&type_info))); // TODO: Convert to hex?
         vector::append(&mut seed, b"::");
         vector::append(&mut seed, type_info::module_name(&type_info));
         vector::append(&mut seed, b"::");
@@ -129,6 +136,14 @@ module movemate::governance {
         });
     }
 
+    /// @notice Creates a new Delegate object.
+    public entry fun new_voter<CoinType>(voter: &signer) {
+        let voter_address = signer::address_of(voter);
+        assert!(!exists<Delegate<CoinType>>(voter_address), error::already_exists(EVOTER_ALREADY_EXISTS));
+        move_to(voter, Delegate<CoinType> { delegatee: voter_address });
+        move_to(voter, Checkpoints<CoinType> { checkpoints: vector::empty() });
+    }
+
     /// @notice Lock your coins for voting in the specified forum.
     public entry fun lock_coins<CoinType>(account: &signer, amount: u64) acquires CoinStore, Checkpoints, Delegate {
         // Move coin in
@@ -142,6 +157,10 @@ module movemate::governance {
         };
 
         // Update checkpoints
+        if (!exists<Delegate<CoinType>>(sender)) {
+            move_to(account, Delegate<CoinType> { delegatee: sender });
+            move_to(account, Checkpoints<CoinType> { checkpoints: vector::empty() });
+        };
         write_checkpoint<CoinType>(borrow_global<Delegate<CoinType>>(sender).delegatee, false, amount);
     }
 
@@ -261,7 +280,7 @@ module movemate::governance {
     /// Requirements:
     /// - `timestamp` must have already happened
     public fun get_past_votes<CoinType>(account: address, timestamp: u64): u64 acquires Checkpoints {
-        assert!(timestamp < timestamp::now_seconds(), error::invalid_argument(ETIMESTAMP_IN_FUTURE));
+        assert!(timestamp <= timestamp::now_seconds(), error::invalid_argument(ETIMESTAMP_IN_FUTURE));
         checkpoints_lookup<CoinType>(account, timestamp)
     }
 
@@ -309,31 +328,420 @@ module movemate::governance {
         } else {
             // Add delegatee
             move_to(delegator, Delegate<CoinType> { delegatee });
+            move_to(delegator, Checkpoints<CoinType> { checkpoints: vector::empty() });
         };
 
         // Add votes to new delegatee
+        assert!(exists<Checkpoints<CoinType>>(delegatee), error::not_found(EDELEGATEE_NOT_REGISTERED));
         write_checkpoint<CoinType>(delegatee, false, delegator_balance);
     }
 
     /// @dev Internal function to add a votes checkpoint.
     fun write_checkpoint<CoinType>(account: address, subtract_not_add: bool, delta: u64): (u64, u64) acquires Checkpoints {
         let ckpts = &mut borrow_global_mut<Checkpoints<CoinType>>(account).checkpoints;
-
         let pos = vector::length(ckpts);
-        let last_ckpt = vector::borrow_mut(ckpts, pos - 1);
-        let old_weight = if (pos == 0) 0 else last_ckpt.votes;
-        let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
         let now = timestamp::now_seconds();
 
-        if (pos > 0 && last_ckpt.from_timestamp == now) {
-            *&mut last_ckpt.votes = new_weight;
+        if (pos > 0) {
+            let last_ckpt = vector::borrow_mut(ckpts, pos - 1);
+            let old_weight = last_ckpt.votes;
+            let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
+
+            if (last_ckpt.from_timestamp == now) {
+                *&mut last_ckpt.votes = new_weight;
+            } else {
+                vector::push_back(ckpts, Checkpoint {
+                    from_timestamp: now,
+                    votes: new_weight
+                });
+            };
+
+            (old_weight, new_weight)
         } else {
+            let old_weight = 0;
+            let new_weight = if (subtract_not_add) old_weight - delta else old_weight + delta;
+
             vector::push_back(ckpts, Checkpoint {
                 from_timestamp: now,
                 votes: new_weight
             });
-        };
 
-        (old_weight, new_weight)
+            (old_weight, new_weight)
+        }
+    }
+
+    #[test_only]
+    struct FakeMoney { }
+
+    #[test_only]
+    struct FakeMoneyCapabilities has key {
+        mint_cap: coin::MintCapability<FakeMoney>,
+        burn_cap: coin::BurnCapability<FakeMoney>,
+    }
+    
+    #[test_only]
+    fun fast_forward_seconds(timestamp_seconds: u64) {
+        timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
+    }
+
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, voter_d = @0x1004, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    public entry fun test_end_to_end(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, voter_d: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+
+        coin::register_for_test<FakeMoney>(&voter_a);
+        coin::register_for_test<FakeMoney>(&voter_b);
+        coin::register_for_test<FakeMoney>(&voter_c);
+        coin::register_for_test<FakeMoney>(&voter_d);
+        let voter_a_address = signer::address_of(&voter_a);
+        let voter_b_address = signer::address_of(&voter_b);
+        let voter_c_address = signer::address_of(&voter_c);
+        let voter_d_address = signer::address_of(&voter_d);
+        coin::deposit(voter_a_address, coin::mint<FakeMoney>(1234567890, &mint_cap));
+        coin::deposit(voter_b_address, coin::mint<FakeMoney>(400000000, &mint_cap));
+        coin::deposit(voter_c_address, coin::mint<FakeMoney>(600000000, &mint_cap));
+        coin::deposit(voter_d_address, coin::mint<FakeMoney>(1100000000, &mint_cap));
+
+        // Init forum
+        init_forum<FakeMoney>(
+            &forum_creator,
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            2000000000,
+            1500000000
+        );
+
+        // Lock coins and delegate from C to A
+        lock_coins<FakeMoney>(&voter_a, 1234567890);
+        unlock_coins<FakeMoney>(&voter_a, 34567890);
+        assert!(coin::balance<FakeMoney>(voter_a_address) == 34567890, 0);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 1200000000, 1);
+        lock_coins<FakeMoney>(&voter_b, 400000000);
+        lock_coins<FakeMoney>(&voter_c, 600000000);
+        lock_coins<FakeMoney>(&voter_d, 1100000000);
+        delegate<FakeMoney>(&voter_c, voter_a_address);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 1800000000, 2);
+        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 3);
+        assert!(get_votes<FakeMoney>(voter_c_address) == 0, 4);
+        assert!(get_votes<FakeMoney>(voter_d_address) == 1100000000, 5);
+
+        // Create proposal from address A
+        let forum_address = signer::address_of(&forum_creator);
+        create_proposal<FakeMoney>(
+            forum_address,
+            &voter_a,
+            transaction_context::get_script_hash(),
+            std::string::utf8(b"Test"),
+            b"Example"
+        );
+
+        // Cast votes
+        fast_forward_seconds(86400 * 2);
+        cast_vote<FakeMoney>(&voter_a, forum_address, 0, true);
+        cast_vote<FakeMoney>(&voter_b, forum_address, 0, true);
+        cast_vote<FakeMoney>(&voter_c, forum_address, 0, false);
+        cast_vote<FakeMoney>(&voter_d, forum_address, 0, false);
+
+        // Execute proposal
+        fast_forward_seconds(86400 * 5);
+        let gov_signer = execute_proposal<FakeMoney>(
+            forum_address,
+            0
+        );
+
+        // Check signer
+        let seed = b"movemate::governance::Forum<";
+        vector::append(&mut seed, bcs::to_bytes(&@movemate));
+        vector::append(&mut seed, b"::governance::FakeMoney>");
+        let address_bytes = bcs::to_bytes(&forum_address);
+        vector::append(&mut address_bytes, seed);
+        let expected_gov_signer_address = account::create_address_for_test(std::hash::sha3_256(address_bytes));
+        assert!(signer::address_of(&gov_signer) == expected_gov_signer_address, 6);
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
+    }
+
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    #[expected_failure(abort_code = 0x30009)]
+    public entry fun test_proposal_cancellation(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+
+        coin::register_for_test<FakeMoney>(&voter_a);
+        coin::register_for_test<FakeMoney>(&voter_b);
+        coin::register_for_test<FakeMoney>(&voter_c);
+        let voter_a_address = signer::address_of(&voter_a);
+        let voter_b_address = signer::address_of(&voter_b);
+        let voter_c_address = signer::address_of(&voter_c);
+        coin::deposit(voter_a_address, coin::mint<FakeMoney>(1800000000, &mint_cap));
+        coin::deposit(voter_b_address, coin::mint<FakeMoney>(400000000, &mint_cap));
+        coin::deposit(voter_c_address, coin::mint<FakeMoney>(1100000000, &mint_cap));
+
+        // Init forum
+        init_forum<FakeMoney>(
+            &forum_creator,
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            1800000000,
+            1500000000
+        );
+
+        // Lock coins
+        lock_coins<FakeMoney>(&voter_a, 1800000000);
+        lock_coins<FakeMoney>(&voter_b, 400000000);
+        lock_coins<FakeMoney>(&voter_c, 1100000000);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 1800000000, 0);
+        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 1);
+        assert!(get_votes<FakeMoney>(voter_c_address) == 1100000000, 2);
+
+        // Create proposal from address A
+        let forum_address = signer::address_of(&forum_creator);
+        create_proposal<FakeMoney>(
+            forum_address,
+            &voter_a,
+            transaction_context::get_script_hash(),
+            std::string::utf8(b"Test"),
+            b"Example"
+        );
+
+        // Cast votes
+        fast_forward_seconds(86400 * 2);
+        cast_vote<FakeMoney>(&voter_a, forum_address, 0, true);
+        cast_vote<FakeMoney>(&voter_b, forum_address, 0, false);
+        cast_vote<FakeMoney>(&voter_c, forum_address, 0, false);
+
+        // Execute proposal
+        fast_forward_seconds(86400 * 5);
+        execute_proposal<FakeMoney>(
+            forum_address,
+            0
+        );
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
+    }
+
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    #[expected_failure(abort_code = 0x30008)]
+    public entry fun test_proposal_lack_of_quorum(forum_creator: signer, voter_a: signer, voter_b: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+
+        coin::register_for_test<FakeMoney>(&voter_a);
+        coin::register_for_test<FakeMoney>(&voter_b);
+        let voter_a_address = signer::address_of(&voter_a);
+        let voter_b_address = signer::address_of(&voter_b);
+        coin::deposit(voter_a_address, coin::mint<FakeMoney>(1700000000, &mint_cap));
+        coin::deposit(voter_b_address, coin::mint<FakeMoney>(400000000, &mint_cap));
+
+        // Init forum
+        init_forum<FakeMoney>(
+            &forum_creator,
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            1800000000,
+            1500000000
+        );
+
+        // Lock coins
+        lock_coins<FakeMoney>(&voter_a, 1700000000);
+        lock_coins<FakeMoney>(&voter_b, 400000000);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 1700000000, 0);
+        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 1);
+
+        // Create proposal from address A
+        let forum_address = signer::address_of(&forum_creator);
+        create_proposal<FakeMoney>(
+            forum_address,
+            &voter_a,
+            transaction_context::get_script_hash(),
+            std::string::utf8(b"Test"),
+            b"Example"
+        );
+
+        // Cast votes
+        fast_forward_seconds(86400 * 2);
+        cast_vote<FakeMoney>(&voter_a, forum_address, 0, true);
+        cast_vote<FakeMoney>(&voter_b, forum_address, 0, false);
+
+        // Execute proposal
+        fast_forward_seconds(86400 * 5);
+        execute_proposal<FakeMoney>(
+            forum_address,
+            0
+        );
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
+    }
+
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    #[expected_failure(abort_code = 0x50007)]
+    public entry fun test_proposal_wrong_script_hash(forum_creator: signer, voter_a: signer, voter_b: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+
+        coin::register_for_test<FakeMoney>(&voter_a);
+        coin::register_for_test<FakeMoney>(&voter_b);
+        let voter_a_address = signer::address_of(&voter_a);
+        let voter_b_address = signer::address_of(&voter_b);
+        coin::deposit(voter_a_address, coin::mint<FakeMoney>(1800000000, &mint_cap));
+        coin::deposit(voter_b_address, coin::mint<FakeMoney>(400000000, &mint_cap));
+
+        // Init forum
+        init_forum<FakeMoney>(
+            &forum_creator,
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            1800000000,
+            1500000000
+        );
+
+        // Lock coins
+        lock_coins<FakeMoney>(&voter_a, 1800000000);
+        lock_coins<FakeMoney>(&voter_b, 400000000);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 1800000000, 0);
+        assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 1);
+
+        // Create proposal from address A
+        let forum_address = signer::address_of(&forum_creator);
+        let script_hash = transaction_context::get_script_hash();
+        let byte_0_ref = vector::borrow_mut(&mut script_hash, 0);
+        *byte_0_ref = if (*byte_0_ref == 123) 45 else 123; // Mess up the script hash on purpose
+        create_proposal<FakeMoney>(
+            forum_address,
+            &voter_a,
+            script_hash,
+            std::string::utf8(b"Test"),
+            b"Example"
+        );
+
+        // Cast votes
+        fast_forward_seconds(86400 * 2);
+        cast_vote<FakeMoney>(&voter_a, forum_address, 0, true);
+        cast_vote<FakeMoney>(&voter_b, forum_address, 0, false);
+
+        // Execute proposal
+        fast_forward_seconds(86400 * 5);
+        execute_proposal<FakeMoney>(
+            forum_address,
+            0
+        );
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
+    }
+
+    #[test(forum_creator = @0x1000, voter_a = @0x1001, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    #[expected_failure(abort_code = 0x50000)]
+    public entry fun test_unqualified_proposer(forum_creator: signer, voter_a: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
+        // start the clock
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+
+        // mint fake coin
+        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+            &coin_creator,
+            std::string::utf8(b"Fake Money A"),
+            std::string::utf8(b"FMA"),
+            6,
+            true
+        );
+
+        coin::register_for_test<FakeMoney>(&voter_a);
+        let voter_a_address = signer::address_of(&voter_a);
+        coin::deposit(voter_a_address, coin::mint<FakeMoney>(800000000, &mint_cap));
+
+        // Init forum
+        init_forum<FakeMoney>(
+            &forum_creator,
+            86400 * 2,
+            86400 * 3,
+            86400 * 2,
+            86400 * 2,
+            1200000000,
+            1800000000,
+            1500000000
+        );
+
+        // Lock coins
+        lock_coins<FakeMoney>(&voter_a, 800000000);
+        assert!(get_votes<FakeMoney>(voter_a_address) == 800000000, 0);
+
+        // Attempt to create proposal from address A
+        let forum_address = signer::address_of(&forum_creator);
+        create_proposal<FakeMoney>(
+            forum_address,
+            &voter_a,
+            transaction_context::get_script_hash(),
+            std::string::utf8(b"Test"),
+            b"Example"
+        );
+
+        // clean up: we can't drop mint/burn caps so we store them
+        move_to(&coin_creator, FakeMoneyCapabilities {
+            mint_cap: mint_cap,
+            burn_cap: burn_cap,
+        });
     }
 }
