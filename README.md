@@ -5,7 +5,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 ## Modules
 
 * `box` Store arbitrary objects accessible only by their recipients.
-* `crit_bit`: [Crit-bit trees](https://cr.yp.to/critbit.html) data structure.
+* `crit_bit`: [Crit-bit trees](https://cr.yp.to/critbit.html) data structure. (Thanks to Econia.)
 * `escrow` (Sui only): Very basic object escrow module on Sui.
 * `escrow_shared` (Sui only): Basic object escrow module with refunds and arbitration on Sui.
 * `governance`: On-chain tokenholder governance using coins.
@@ -13,6 +13,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 * `math`: Standard math utilities missing in the Move language (for `u64`).
 * `math_u128`: Standard math utilities missing in the Move language (for `u128`).
 * `merkle_proof`: Merkle proof verification utilities.
+* `u256`: U256 implementation in Move. (Thanks to Pontem.)
 * `vectors`: Vector utilities--specifically, comparison operators and a binary search function.
 * `virtual_block`: Replace latency auctions with gas auctions (with control over MEV rewards) via virtual blocks.
 
