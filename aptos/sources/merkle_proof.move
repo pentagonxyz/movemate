@@ -47,8 +47,7 @@ module movemate::merkle_proof {
         let proof_length = vector::length(proof);
         let i = 0;
 
-        loop {
-            if (i >= proof_length) break;
+        while (i < proof_length) {
             computed_hash = hash_pair(computed_hash, *vector::borrow(proof, i));
             i = i + 1;
         };
@@ -98,9 +97,7 @@ module movemate::merkle_proof {
         //   `proof` array.
         let i = 0;
 
-        loop {
-            if (i >= total_hashes) break;
-
+        while (i < total_hashes) {
             let a = if (leaf_pos < leaves_len) {
                 leaf_pos = leaf_pos + 1;
                 *vector::borrow(leaves, leaf_pos)

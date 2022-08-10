@@ -50,8 +50,7 @@ module movemate::vectors {
         let len = vector::length(a);
         assert!(len == vector::length(b), errors::invalid_argument(EVECTOR_LENGTH_MISMATCH));
 
-        loop {
-            if (i >= len) break;
+        while (i < len) {
             let aa = *vector::borrow(a, i);
             let bb = *vector::borrow(b, i);
             if (aa < bb) return true;
@@ -67,8 +66,7 @@ module movemate::vectors {
         let len = vector::length(a);
         assert!(len == vector::length(b), errors::invalid_argument(EVECTOR_LENGTH_MISMATCH));
 
-        loop {
-            if (i >= len) break;
+        while (i < len) {
             let aa = *vector::borrow(a, i);
             let bb = *vector::borrow(b, i);
             if (aa > bb) return true;
@@ -84,8 +82,7 @@ module movemate::vectors {
         let len = vector::length(a);
         assert!(len == vector::length(b), errors::invalid_argument(EVECTOR_LENGTH_MISMATCH));
 
-        loop {
-            if (i >= len) break;
+        while (i < len) {
             let aa = *vector::borrow(a, i);
             let bb = *vector::borrow(b, i);
             if (aa < bb) return true;
@@ -101,8 +98,7 @@ module movemate::vectors {
         let len = vector::length(a);
         assert!(len == vector::length(b), errors::invalid_argument(EVECTOR_LENGTH_MISMATCH));
 
-        loop {
-            if (i >= len) break;
+        while (i < len) {
             let aa = *vector::borrow(a, i);
             let bb = *vector::borrow(b, i);
             if (aa > bb) return true;
