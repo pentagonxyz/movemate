@@ -34,4 +34,31 @@ module movemate::escrow {
         object::delete(info);
         transfer::transfer(obj, recipient);
     }
+
+    #[test_only]
+    use sui::test_scenario;
+
+    #[test_only]
+    const TEST_SENDER_ADDR: address = @0xA11CE;
+
+    #[test_only]
+    const TEST_RECIPIENT_ADDR: address = @0xB0B;
+
+    #[test_only]
+    struct FakeObject has key, store {
+        data: u64
+    }
+
+    #[test]
+    public fun test_end_to_end() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, FakeObject { data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let escrow = test_scenario::take_owned<Escrow<FakeObject>>(scenario);
+        transfer(escrow);
+        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        assert!(obj.data == 1234, 0);
+        test_scenario::return_owned(scenario, obj);
+    }
 }
