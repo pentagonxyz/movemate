@@ -5,7 +5,7 @@
 /// @dev Probabilistic data structure for checking if an element is part of a set.
 module movemate::bloom_filter {
     use std::bcs;
-    use std::error;
+    use std::errors;
     use std::hash;
     use std::vector;
 
@@ -13,7 +13,7 @@ module movemate::bloom_filter {
 
     const EHASH_COUNT_IS_ZERO: u64 = 0;
 
-    struct Filter {
+    struct Filter has copy, drop, store {
         bitmap: U256,
         hash_count: u8
     }
@@ -76,9 +76,64 @@ module movemate::bloom_filter {
         *&mut _filter.bitmap = add_to_bitmap(_filter.bitmap, _filter.hash_count, _item);
     }
 
+    /// @dev It updates the bitmap of the filter using the given item value
+    /// @param _item Hash value of an item
+    public fun add_vector(_filter: &mut Filter, _item: &vector<u8>) {
+        *&mut _filter.bitmap = add_to_bitmap(_filter.bitmap, _filter.hash_count, u256::from_bytes(_item));
+    }
+
     /// @dev It returns the filter may include the item or definitely now include it.
     /// @param _item Hash value of an item
     public fun check(_filter: &Filter, _item: U256): bool {
         false_positive(_filter.bitmap, _filter.hash_count, _item)
+    }
+
+    /// @dev It returns the filter may include the item or definitely now include it.
+    /// @param _item Hash value of an item
+    public fun check_vector(_filter: &Filter, _item: &vector<u8>): bool {
+        false_positive(_filter.bitmap, _filter.hash_count, u256::from_bytes(_item))
+    }
+
+    #[test]
+    public fun test_end_to_end() {
+        // Test init: check hash count
+        let filter = init(10);
+        assert!(filter.hash_count == 37, 0); // Hash count should equal 37
+        
+        // Test adding elements
+        add(&mut filter, u256::from_u128(123));
+        let bitmap_a = filter.bitmap;
+        add(&mut filter, u256::from_u128(123));
+        let bitmap_b = filter.bitmap;
+        assert!(bitmap_b == bitmap_a, 1); // Adding same item should not update the bitmap
+        add(&mut filter, u256::from_u128(456));
+        let bitmap_c = filter.bitmap;
+        assert!(bitmap_c != bitmap_b, 2); // Adding different item should update the bitmap
+
+        // Test checking for inclusion
+        let included = b"abcdefghij";
+        let not_included = b"klmnopqrst";
+        let i = 0;
+        while (i < 10) {
+            let key = hash::sha2_256(vector::singleton(*vector::borrow(&included, i)));
+            add_vector(&mut filter, &key);
+            i = i + 1;
+        };
+        let j = 0;
+        while (j < 10) {
+            let key = hash::sha2_256(vector::singleton(*vector::borrow(&included, j)));
+            let false_positive = check_vector(&filter, &key);
+            // It may exist or not
+            assert!(false_positive, 3); // Should return false positive
+            j + j + 1;
+        };
+        let k = 0;
+        while (k < 10) {
+            let key = hash::sha2_256(vector::singleton(*vector::borrow(&not_included, k)));
+            let false_positive = check_vector(&filter, &key);
+            // It definitely does not exist
+            assert!(!false_positive, 4); // Should return definitely not exist
+            k = k + 1;
+        }
     }
 }
