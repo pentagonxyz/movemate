@@ -4,6 +4,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 
 ## Modules
 
+* `bloom_filter`: Space-efficient probabilistic data structure for checking if an element is part of a set.
 * `box`: On Aptos, send objects without the recipient having to set up a store for themselves beforehand. On Sui, transfer objects with the `store` ability but not the `key` ability.
 * `crit_bit`: [Crit-bit trees](https://cr.yp.to/critbit.html) data structure. (Thanks to Econia.)
 * `escrow` (Sui only): Very basic object escrow module on Sui.
