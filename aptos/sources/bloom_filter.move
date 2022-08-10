@@ -79,7 +79,7 @@ module movemate::bloom_filter {
     /// @dev It updates the bitmap of the filter using the given item value
     /// @param _item Hash value of an item
     public fun add_vector(_filter: &mut Filter, _item: &vector<u8>) {
-        *&mut _filter.bitmap = add_to_bitmap(_filter.bitmap, _filter.hash_count, u256::from_bytes(_item));
+        add(_filter, u256::from_bytes(_item))
     }
 
     /// @dev It returns the filter may include the item or definitely now include it.
@@ -91,7 +91,7 @@ module movemate::bloom_filter {
     /// @dev It returns the filter may include the item or definitely now include it.
     /// @param _item Hash value of an item
     public fun check_vector(_filter: &Filter, _item: &vector<u8>): bool {
-        false_positive(_filter.bitmap, _filter.hash_count, u256::from_bytes(_item))
+        check(_filter, u256::from_bytes(_item))
     }
 
     #[test]
