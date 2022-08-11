@@ -50,7 +50,7 @@ module movemate::date {
     // ------------------------------------------------------------------------
     public fun days_from_date(_year: u64, _month: u64, _day: u64): u64 {
         assert!(_year >= 1970, errors::invalid_argument(EYEAR_BEFORE_1970));
-        let monthMinus14DividedBy12TimesNegative1 = if (_month >= 3) 1 else 0;
+        let monthMinus14DividedBy12TimesNegative1 = if (_month < 3) 1 else 0;
         let __days = _day
             + 1461 * (_year + 4800 - monthMinus14DividedBy12TimesNegative1) / 4;
         let mm14db12tn1Times12PlusMonth = monthMinus14DividedBy12TimesNegative1 * 12 + _month;
