@@ -14,7 +14,6 @@ Ideas and improvements.
 
 * `quadratic_vesting`: merge with `linear_vesting`?
 * `quadratic_vesting`: better tests.
-* `linear_vesting`: clawback capability.
 * `governance`: finish tests.
 * `merkle_proof`: unit tests for multi-proof verification.
 * `governance`: make delegation optional?

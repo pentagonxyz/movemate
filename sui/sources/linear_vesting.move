@@ -12,12 +12,12 @@ module movemate::linear_vesting {
     use std::option::{Self, Option};
 
     use sui::coin::{Self, Coin};
-    use sui::object::{Self, Info};
+    use sui::object::{Self, ID, Info};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
-    /// @dev When trying to clawback a wallet without the privilege to do so.
-    const ECANNOT_CLAWBACK: u64 = 0;
+    /// @dev When trying to clawback a wallet with the wrong wallet's capability.
+    const EWRONG_CLAWBACK_CAPABILITY: u64 = 0;
 
     struct Wallet<phantom T> has key {
         info: Info,
@@ -25,21 +25,41 @@ module movemate::linear_vesting {
         coin: Coin<T>,
         released: u64,
         start: u64,
-        duration: u64,
-        clawbacker: Option<address>
+        duration: u64
+    }
+
+    struct ClawbackCapability has key, store {
+        info: Info,
+        wallet_id: ID
     }
 
     /// @dev Set the beneficiary, start timestamp and vesting duration of the vesting wallet.
     public entry fun init_wallet<T>(beneficiary: address, start: u64, duration: u64, clawbacker: Option<address>, ctx: &mut TxContext) {
-        transfer::share_object(Wallet<T> {
+        let wallet = Wallet<T> {
             info: object::new(ctx),
             beneficiary,
             coin: coin::zero<T>(ctx),
             released: 0,
             start,
-            duration,
-            clawbacker
-        });
+            duration
+        };
+        if (option::is_some(&clawbacker)) transfer::transfer(ClawbackCapability { info: object::new(ctx), wallet_id: *object::id(&wallet) }, option::destroy_some(clawbacker));
+        transfer::share_object(wallet);
+    }
+
+    /// @dev Set the beneficiary, start timestamp and vesting duration of the vesting wallet.
+    public fun init_wallet_return_clawback<T>(beneficiary: address, start: u64, duration: u64, ctx: &mut TxContext): ClawbackCapability {
+        let wallet = Wallet<T> {
+            info: object::new(ctx),
+            beneficiary,
+            coin: coin::zero<T>(ctx),
+            released: 0,
+            start,
+            duration
+        };
+        let clawback_cap = ClawbackCapability { info: object::new(ctx), wallet_id: *object::id(&wallet) };
+        transfer::share_object(wallet);
+        clawback_cap
     }
 
     /// @dev Deposits `coin_in` to `wallet`.
@@ -48,8 +68,8 @@ module movemate::linear_vesting {
     }
 
     /// @notice Returns the vesting wallet details.
-    public fun wallet_info<T>(wallet: &mut Wallet<T>): (address, u64, u64, u64, u64, Option<address>) {
-        (wallet.beneficiary, coin::value(&wallet.coin), wallet.released, wallet.start, wallet.duration, wallet.clawbacker)
+    public fun wallet_info<T>(wallet: &Wallet<T>): (address, u64, u64, u64, u64) {
+        (wallet.beneficiary, coin::value(&wallet.coin), wallet.released, wallet.start, wallet.duration)
     }
 
     /// @dev Release the tokens that have already vested.
@@ -60,13 +80,16 @@ module movemate::linear_vesting {
         coin::split_and_transfer<T>(&mut wallet.coin, releasable, wallet.beneficiary, ctx);
     }
 
-    /// @notice Claws back coins to the `clawbacker` if enabled.
-    /// @dev TODO: Clawback capability.
-    /// @dev TODO: Destroy wallet.
-    public entry fun clawback<T>(wallet: &mut Wallet<T>, ctx: &mut TxContext) {
-        // Check clawbacker address
-        let sender = tx_context::sender(ctx);
-        assert!(option::is_some(&wallet.clawbacker) && sender == *option::borrow(&wallet.clawbacker), errors::requires_address(ECANNOT_CLAWBACK));
+    /// @notice Claws back coins if enabled.
+    /// @dev TODO: Possible to destroy shared wallet object?
+    public fun clawback<T>(wallet: &mut Wallet<T>, clawback_cap: ClawbackCapability, ctx: &mut TxContext): Coin<T> {
+        // Check and delete clawback capability
+        let ClawbackCapability {
+            info: info,
+            wallet_id: wallet_id
+        } = clawback_cap;
+        assert!(wallet_id == *object::id(wallet), errors::requires_capability(EWRONG_CLAWBACK_CAPABILITY));
+        object::delete(info);
 
         // Release amount
         let releasable = vested_amount(wallet.start, wallet.duration, coin::value(&wallet.coin), wallet.released, tx_context::epoch(ctx)) - wallet.released;
@@ -76,7 +99,21 @@ module movemate::linear_vesting {
         // Execute clawback
         let coin_out = &mut wallet.coin;
         let value = coin::value(coin_out);
-        coin::split_and_transfer<T>(coin_out, value, sender, ctx);
+        coin::take<T>(coin::balance_mut(coin_out), value, ctx)
+    }
+
+    /// @notice Claws back coins to the `recipient` if enabled.
+    public entry fun clawback_to<T>(wallet: &mut Wallet<T>, clawback_cap: ClawbackCapability, recipient: address, ctx: &mut TxContext) {
+        coin::transfer(clawback(wallet, clawback_cap, ctx), recipient)
+    }
+
+    /// @dev Destroys a clawback capability.
+    public fun destroy_clawback_capability(clawback_cap: ClawbackCapability) {
+        let ClawbackCapability {
+            info: info,
+            wallet_id: _
+        } = clawback_cap;
+        object::delete(info);
     }
 
     /// @dev Returns (1) the amount that has vested at the current time and the (2) portion of that amount that has not yet been released.
@@ -143,7 +180,8 @@ module movemate::linear_vesting {
         test_scenario::next_epoch(scenario);
         let wallet_wrapper = test_scenario::take_shared<Wallet<FakeMoney>>(scenario);
         let wallet = test_scenario::borrow_mut(&mut wallet_wrapper);
-        clawback<FakeMoney>(wallet, test_scenario::ctx(scenario));
+        let clawback_cap = test_scenario::take_owned<ClawbackCapability>(scenario);
+        clawback_to<FakeMoney>(wallet, clawback_cap, TEST_ADMIN_ADDR, test_scenario::ctx(scenario));
         test_scenario::return_shared(scenario, wallet_wrapper);
 
         // Ensure clawback worked as planned
@@ -158,7 +196,6 @@ module movemate::linear_vesting {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x002)]
     public entry fun test_no_clawback() {
         // Test scenario
         let scenario = &mut test_scenario::begin(&TEST_ADMIN_ADDR);
@@ -176,7 +213,7 @@ module movemate::linear_vesting {
         // fast forward and claw back (should fail)
         test_scenario::next_epoch(scenario);
         test_scenario::next_epoch(scenario);
-        clawback<FakeMoney>(wallet, test_scenario::ctx(scenario));
+        assert!(!test_scenario::can_take_owned<ClawbackCapability>(scenario), 0);
 
         // clean up: return shared wallet object
         test_scenario::return_shared(scenario, wallet_wrapper);
