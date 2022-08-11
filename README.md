@@ -11,6 +11,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 * `governance`: On-chain tokenholder governance using coins.
 * `linear_vesting`: Linear vesting of coins for a given beneficiary.
 * `math`: Standard math utilities missing in the Move language (for `u64`).
+* `math_safe_precise`: `mul_div` for `u64`s while avoiding overflow and a more precise `quadratic` function.
 * `math_u128`: Standard math utilities missing in the Move language (for `u128`).
 * `merkle_proof`: Merkle proof verification utilities.
 * `u256`: U256 implementation in Move. (Thanks to Pontem.)
