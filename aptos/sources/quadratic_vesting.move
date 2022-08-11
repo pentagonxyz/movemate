@@ -9,6 +9,7 @@
 /// be immediately releasable.
 module movemate::quadratic_vesting {
     use std::error;
+    use std::option::{Self, Option};
     use std::signer;
     use std::vector;
 
@@ -32,7 +33,7 @@ module movemate::quadratic_vesting {
         start: u64,
         cliff: u64,
         duration: u64,
-        can_clawback: bool
+        clawbacker: Option<address>
     }
 
     struct WalletInfoCollection has key {
@@ -65,7 +66,7 @@ module movemate::quadratic_vesting {
         start_timestamp: u64,
         cliff_seconds: u64,
         duration_seconds: u64,
-        can_clawback: bool
+        clawbacker: Option<address>
     ) acquires WalletInfoCollection {
         // Create WalletInfoCollection if it doesn't exist
         let admin_address = signer::address_of(admin);
@@ -89,7 +90,7 @@ module movemate::quadratic_vesting {
             start: start_timestamp,
             cliff: cliff_seconds,
             duration: duration_seconds,
-            can_clawback
+            clawbacker
         });
     }
 
@@ -112,11 +113,11 @@ module movemate::quadratic_vesting {
     }
 
     /// @notice Returns the vesting wallet details.
-    public fun wallet_info(admin: address, beneficiary: address, index: u64): (u64, u64, bool) acquires WalletInfoCollection {
+    public fun wallet_info(admin: address, beneficiary: address, index: u64): (u64, u64, Option<address>) acquires WalletInfoCollection {
         let wallet_infos = &mut borrow_global_mut<WalletInfoCollection>(admin).wallets;
         let collection = iterable_table::borrow(wallet_infos, beneficiary);
         let wallet_info = vector::borrow(collection, index);
-        (wallet_info.start, wallet_info.duration, wallet_info.can_clawback)
+        (wallet_info.start, wallet_info.duration, wallet_info.clawbacker)
     }
 
     /// @notice Returns the vesting wallet asset balance and amount released.
@@ -146,18 +147,18 @@ module movemate::quadratic_vesting {
         coin::deposit(beneficiary, release_coin);
     }
 
-    /// @notice Claws back coins to the admin if `can_clawback` is enabled.
-    public entry fun clawback<T>(admin: &signer, beneficiary: address, index: u64) acquires WalletInfoCollection, CoinStoreCollection {
-        // Get admin address
-        let admin_address = signer::address_of(admin);
+    /// @notice Claws back coins to the admin if `clawbacker` is enabled.
+    public entry fun clawback<T>(clawbacker: &signer, admin: address, beneficiary: address, index: u64) acquires WalletInfoCollection, CoinStoreCollection {
+        // Get sender address
+        let sender = signer::address_of(clawbacker);
 
         // Get wallet info
-        let wallet_infos = &borrow_global<WalletInfoCollection>(admin_address).wallets;
+        let wallet_infos = &borrow_global<WalletInfoCollection>(admin).wallets;
         let collection = iterable_table::borrow(wallet_infos, beneficiary);
         let wallet_info = vector::borrow(collection, index);
 
         // Get coin store
-        let coin_stores = &mut borrow_global_mut<CoinStoreCollection<T>>(admin_address).wallets;
+        let coin_stores = &mut borrow_global_mut<CoinStoreCollection<T>>(admin).wallets;
         let collection = iterable_table::borrow_mut(coin_stores, beneficiary);
         let coin_store = table::borrow_mut(collection, index);
 
@@ -168,11 +169,28 @@ module movemate::quadratic_vesting {
         coin::deposit(beneficiary, release_coin);
 
         // Validate clawback
-        assert!(wallet_info.can_clawback, error::permission_denied(ECANNOT_CLAWBACK));
+        assert!(option::is_some(&wallet_info.clawbacker) && sender == *option::borrow(&wallet_info.clawbacker), error::permission_denied(ECANNOT_CLAWBACK));
 
         // Execute clawback
         let clawback_coin = coin::extract_all(&mut coin_store.coin);
-        coin::deposit<T>(admin_address, clawback_coin);
+        coin::deposit<T>(sender, clawback_coin);
+    }
+
+    /// @notice Changes the clawbacker for a vesting wallet.
+    public entry fun change_clawbacker<T>(clawbacker: &signer, admin: address, beneficiary: address, index: u64, new_clawbacker: Option<address>) acquires WalletInfoCollection {
+        // Get sender address
+        let sender = signer::address_of(clawbacker);
+
+        // Get wallet info
+        let wallet_infos = &mut borrow_global_mut<WalletInfoCollection>(admin).wallets;
+        let collection = iterable_table::borrow_mut(wallet_infos, beneficiary);
+        let wallet_info = vector::borrow_mut(collection, index);
+
+        // Validate clawback
+        assert!(option::is_some(&wallet_info.clawbacker) && sender == *option::borrow(&wallet_info.clawbacker), error::permission_denied(ECANNOT_CLAWBACK));
+
+        // Change clawbacker
+        *&mut wallet_info.clawbacker = new_clawbacker;
     }
 
     /// @dev Returns (1) the amount that has vested at the current time and the (2) portion of that amount that has not yet been released.
@@ -231,8 +249,8 @@ module movemate::quadratic_vesting {
         timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
     }
 
-    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @movemate, aptos_framework = @aptos_framework)]
-    public entry fun test_end_to_end(admin: signer, beneficiary: signer, coin_creator: signer, aptos_framework: signer) acquires WalletInfoCollection, CoinStoreCollection {
+    #[test(admin = @0x1000, beneficiary = @0x1001, clawbacker = @0x1002, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    public entry fun test_end_to_end(admin: signer, beneficiary: signer, clawbacker: signer, coin_creator: signer, aptos_framework: signer) acquires WalletInfoCollection, CoinStoreCollection {
         // start the clock
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -248,7 +266,8 @@ module movemate::quadratic_vesting {
 
         // init wallet and asset
         let beneficiary_address = signer::address_of(&beneficiary);
-        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, true);
+        let clawbacker_address = signer::address_of(&clawbacker);
+        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, option::some(clawbacker_address));
         init_asset<FakeMoney>(&admin);
         let admin_address = signer::address_of(&admin);
         deposit<FakeMoney>(admin_address, beneficiary_address, 0, coin_in);
@@ -261,10 +280,10 @@ module movemate::quadratic_vesting {
 
         // fast forward and claw back
         fast_forward_seconds(7200);
-        coin::register_for_test<FakeMoney>(&admin);
-        clawback<FakeMoney>(&admin, beneficiary_address, 0);
+        coin::register_for_test<FakeMoney>(&clawbacker);
+        clawback<FakeMoney>(&clawbacker, admin_address, beneficiary_address, 0);
         assert!(coin::balance<FakeMoney>(beneficiary_address) == 154320986, 1);
-        assert!(coin::balance<FakeMoney>(admin_address) == 1234567890 - 154320986, 2);
+        assert!(coin::balance<FakeMoney>(clawbacker_address) == 1234567890 - 154320986, 2);
 
         // clean up: we can't drop mint/burn caps so we store them
         move_to(&coin_creator, FakeMoneyCapabilities {
@@ -280,19 +299,19 @@ module movemate::quadratic_vesting {
 
         // init wallet and asset
         let beneficiary_address = signer::address_of(&beneficiary);
-        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, true);
+        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, option::none());
 
         // init wallet and asset
         let beneficiary2_address = signer::address_of(&beneficiary2);
-        init_wallet(&admin, beneficiary2_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, true);
+        init_wallet(&admin, beneficiary2_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, option::none());
 
         // init wallet and asset
-        init_wallet(&admin, beneficiary2_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 172800, true);
+        init_wallet(&admin, beneficiary2_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 172800, option::none());
     }
 
-    #[test(admin = @0x1000, beneficiary = @0x1001, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    #[test(admin = @0x1000, beneficiary = @0x1001, clawbacker = @1002, coin_creator = @movemate, aptos_framework = @aptos_framework)]
     #[expected_failure(abort_code = 0x50000)]
-    public entry fun test_no_clawback(admin: signer, beneficiary: signer, coin_creator: signer, aptos_framework: signer) acquires WalletInfoCollection, CoinStoreCollection {
+    public entry fun test_no_clawback(admin: signer, beneficiary: signer, clawbacker: signer, coin_creator: signer, aptos_framework: signer) acquires WalletInfoCollection, CoinStoreCollection {
         // start the clock
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -308,7 +327,7 @@ module movemate::quadratic_vesting {
 
         // init wallet and asset
         let beneficiary_address = signer::address_of(&beneficiary);
-        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, false);
+        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, option::none());
         init_asset<FakeMoney>(&admin);
         let admin_address = signer::address_of(&admin);
         deposit<FakeMoney>(admin_address, beneficiary_address, 0, coin_in);
@@ -316,8 +335,8 @@ module movemate::quadratic_vesting {
         // fast forward and claw back (should fail)
         fast_forward_seconds(3600);
         coin::register_for_test<FakeMoney>(&beneficiary);
-        coin::register_for_test<FakeMoney>(&admin);
-        clawback<FakeMoney>(&admin, beneficiary_address, 0);
+        coin::register_for_test<FakeMoney>(&clawbacker);
+        clawback<FakeMoney>(&clawbacker, admin_address, beneficiary_address, 0);
 
         // clean up: we can't drop mint/burn caps so we store them
         move_to(&coin_creator, FakeMoneyCapabilities {
