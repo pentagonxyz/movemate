@@ -104,7 +104,7 @@ module movemate::math {
         result
     }
 
-    /// @notice Calculates ax^2 + bx + c assuming constants are scaled by 2**16.
+    /// @notice Calculates ax^2 + bx + c assuming all variables are scaled by 2**16.
     public fun quadratic(x: u64, a: u64, b: u64, c: u64): u64 {
         (exp(x, 2) / SCALAR * a / SCALAR)
             + (b * x / SCALAR)

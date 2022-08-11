@@ -257,7 +257,7 @@ module movemate::quadratic_vesting {
         fast_forward_seconds(3600);
         coin::register_for_test<FakeMoney>(&beneficiary);
         release<FakeMoney>(admin_address, beneficiary_address, 0);
-        assert!(coin::balance<FakeMoney>(beneficiary_address) == 51440328, 0);
+        assert!(coin::balance<FakeMoney>(beneficiary_address) == 51427770, 0);
 
         // fast forward and claw back
         fast_forward_seconds(7200);

@@ -168,7 +168,7 @@ module movemate::quadratic_vesting {
         // Ensure release worked as planned
         test_scenario::next_tx(scenario, &TEST_BENEFICIARY_ADDR);
         let beneficiary_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
-        assert!(coin::value<FakeMoney>(&beneficiary_coin) == 352733682, 0);
+        assert!(coin::value<FakeMoney>(&beneficiary_coin) == 352722918, 0);
         test_scenario::return_owned(scenario, beneficiary_coin);
 
         // fast forward and claw back vesting
@@ -184,11 +184,11 @@ module movemate::quadratic_vesting {
         // Ensure clawback worked as planned
         test_scenario::next_tx(scenario, &TEST_BENEFICIARY_ADDR);
         let beneficiary_coin = test_scenario::take_last_created_owned<Coin<FakeMoney>>(scenario);
-        assert!(coin::value<FakeMoney>(&beneficiary_coin) == 881834207 - 352733682, 1);
+        assert!(coin::value<FakeMoney>(&beneficiary_coin) == 881826133 - 352722918, 1);
         test_scenario::return_owned(scenario, beneficiary_coin);
         test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
         let admin_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
-        assert!(coin::value<FakeMoney>(&admin_coin) == 1234567890 - 881834207, 2);
+        assert!(coin::value<FakeMoney>(&admin_coin) == 1234567890 - 881826133, 2);
         test_scenario::return_owned(scenario, admin_coin);
     }
 
