@@ -46,13 +46,14 @@ module movemate::escrow {
 
     #[test_only]
     struct FakeObject has key, store {
+        info: Info,
         data: u64
     }
 
     #[test]
     public fun test_end_to_end() {
         let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, FakeObject { data: 1234 }, test_scenario::ctx(scenario));
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
         test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
         let escrow = test_scenario::take_owned<Escrow<FakeObject>>(scenario);
         transfer(escrow);
