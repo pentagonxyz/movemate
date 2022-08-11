@@ -12,6 +12,7 @@
 /// generate random numbers; try a more secure way.
 module movemate::pseudorandom {
     use std::bcs;
+    use std::error;
     use std::hash;
     use std::signer;
     use std::vector;
@@ -23,8 +24,8 @@ module movemate::pseudorandom {
 
     use movemate::bcd;
 
-    const ENOT_ROOT: u64 = 100;
-    const EINVALID_ARG: u64 = 101;
+    const ENOT_ROOT: u64 = 0;
+    const EHIGH_ARG_GREATER_THAN_LOW_ARG: u64 = 1;
 
     /// Resource that wraps an integer counter.
     struct Counter has key {
@@ -35,7 +36,7 @@ module movemate::pseudorandom {
     public fun init(root: &signer) {
         // "Pack" (create) a Counter resource. This is a privileged operation that
         // can only be done inside the module that declares the `Counter` resource
-        assert!(signer::address_of(root) == @movemate, ENOT_ROOT);
+        assert!(signer::address_of(root) == @movemate, error::permission_denided(ENOT_ROOT));
         move_to(root, Counter { value: 0 })
     }
 
@@ -106,7 +107,7 @@ module movemate::pseudorandom {
 
     /// Generate a random integer range in [low, high).
     public fun rand_u128_range_with_seed(_seed: vector<u8>, low: u128, high: u128): u128 {
-        assert!(high > low, EINVALID_ARG);
+        assert!(high > low, error::invalid_argument(EHIGH_ARG_GREATER_THAN_LOW_ARG));
         let value = rand_u128_with_seed(_seed);
         (value % (high - low)) + low
     }
@@ -118,7 +119,7 @@ module movemate::pseudorandom {
 
     /// Generate a random integer range in [low, high).
     public fun rand_u64_range_with_seed(_seed: vector<u8>, low: u64, high: u64): u64 {
-        assert!(high > low, EINVALID_ARG);
+        assert!(high > low, error::invalid_argument(EHIGH_ARG_GREATER_THAN_LOW_ARG));
         let value = rand_u64_with_seed(_seed);
         (value % (high - low)) + low
     }
