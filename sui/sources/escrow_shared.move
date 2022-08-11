@@ -24,7 +24,7 @@ module movemate::escrow_shared {
         sender: address,
         recipient: address,
         arbitrator: Option<address>,
-        obj: T
+        obj: Option<T>
     }
 
     /// @dev Stores the sent object in an escrow object.
@@ -35,64 +35,158 @@ module movemate::escrow_shared {
             sender,
             recipient,
             arbitrator,
-            obj: obj_in
+            obj: option::some(obj_in)
         };
         transfer::share_object(escrow);
     }
 
     /// @dev Transfers escrowed object to the recipient.
-    public entry fun transfer<T: key + store>(escrow: Escrow<T>, ctx: &mut TxContext) {
-        let Escrow {
-            info: info,
-            sender: sender,
-            recipient: recipient,
-            arbitrator: _,
-            obj: obj,
-        } = escrow;
-        assert!(tx_context::sender(ctx) == sender, errors::requires_address(ENOT_SENDER));
-        object::delete(info);
-        transfer::transfer(obj, recipient);
+    public entry fun transfer<T: key + store>(escrow: &mut Escrow<T>, ctx: &mut TxContext) {
+        assert!(tx_context::sender(ctx) == escrow.sender, errors::requires_address(ENOT_SENDER));
+        transfer::transfer(option::extract(&mut escrow.obj), escrow.recipient);
     }
 
     /// @dev Refunds escrowed object to the sender.
-    public entry fun refund<T: key + store>(escrow: Escrow<T>, ctx: &mut TxContext) {
-        let Escrow {
-            info: info,
-            sender: sender,
-            recipient: recipient,
-            arbitrator: _,
-            obj: obj,
-        } = escrow;
-        assert!(tx_context::sender(ctx) == recipient, errors::requires_address(ENOT_RECIPIENT));
-        object::delete(info);
-        transfer::transfer(obj, sender);
+    public entry fun refund<T: key + store>(escrow: &mut Escrow<T>, ctx: &mut TxContext) {
+        assert!(tx_context::sender(ctx) == escrow.recipient, errors::requires_address(ENOT_RECIPIENT));
+        transfer::transfer(option::extract(&mut escrow.obj), escrow.sender);
     }
 
     /// @dev Transfers escrowed object to the recipient.
-    public entry fun transfer_arbitrated<T: key + store>(escrow: Escrow<T>, ctx: &mut TxContext) {
-        let Escrow {
-            info: info,
-            sender: _,
-            recipient: recipient,
-            arbitrator: arbitrator,
-            obj: obj,
-        } = escrow;
-        assert!(option::is_some(&arbitrator) && tx_context::sender(ctx) == option::destroy_some(arbitrator), errors::requires_address(ENOT_ARBITRATOR));
-        object::delete(info);
-        transfer::transfer(obj, recipient);
+    public entry fun transfer_arbitrated<T: key + store>(escrow: &mut Escrow<T>, ctx: &mut TxContext) {
+        assert!(option::is_some(&escrow.arbitrator) && tx_context::sender(ctx) == *option::borrow(&escrow.arbitrator), errors::requires_address(ENOT_ARBITRATOR));
+        transfer::transfer(option::extract(&mut escrow.obj), escrow.recipient);
     }
 
     /// @dev Refunds escrowed object to the sender.
-    public entry fun refund_arbitrated<T: key + store>(escrow: Escrow<T>, ctx: &mut TxContext) {
-        let Escrow {
-            info: info,
-            sender: sender,
-            recipient: _,
-            arbitrator: arbitrator,
-            obj: obj,
-        } = escrow;
-        assert!(option::is_some(&arbitrator) && tx_context::sender(ctx) == option::destroy_some(arbitrator), errors::requires_address(ENOT_ARBITRATOR));
-        object::delete(info);
-        transfer::transfer(obj, sender);
+    public entry fun refund_arbitrated<T: key + store>(escrow: &mut Escrow<T>, ctx: &mut TxContext) {
+        assert!(option::is_some(&escrow.arbitrator) && tx_context::sender(ctx) == *option::borrow(&escrow.arbitrator), errors::requires_address(ENOT_ARBITRATOR));
+        transfer::transfer(option::extract(&mut escrow.obj), escrow.sender);
+    }
+
+    #[test_only]
+    use sui::test_scenario;
+
+    #[test_only]
+    const TEST_SENDER_ADDR: address = @0xA11CE;
+
+    #[test_only]
+    const TEST_RECIPIENT_ADDR: address = @0xB0B;
+
+    #[test_only]
+    const TEST_ARBITRATOR_ADDR: address = @0xDAD;
+
+    #[test_only]
+    struct FakeObject has key, store {
+        info: Info,
+        data: u64
+    }
+
+    #[test]
+    public fun test_transfer() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
+        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
+        transfer(escrow, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, escrow_wrapper);
+        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        assert!(obj.data == 1234, 0);
+        test_scenario::return_owned(scenario, obj);
+    }
+
+    #[test]
+    public fun test_refund() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
+        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
+        refund(escrow, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, escrow_wrapper);
+        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        assert!(obj.data == 1234, 0);
+        test_scenario::return_owned(scenario, obj);
+    }
+
+    #[test]
+    public fun test_transfer_arbitrator() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_ARBITRATOR_ADDR);
+        let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
+        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
+        transfer_arbitrated(escrow, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, escrow_wrapper);
+        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        assert!(obj.data == 1234, 0);
+        test_scenario::return_owned(scenario, obj);
+    }
+
+    #[test]
+    public fun test_refund_arbitrator() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_ARBITRATOR_ADDR);
+        let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
+        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
+        refund_arbitrated(escrow, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, escrow_wrapper);
+        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        assert!(obj.data == 1234, 0);
+        test_scenario::return_owned(scenario, obj);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x002)]
+    public fun test_transfer_unauthorized() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
+        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
+        transfer(escrow, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, escrow_wrapper);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x102)]
+    public fun test_refund_unauthorized() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
+        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
+        refund(escrow, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, escrow_wrapper);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x202)]
+    public fun test_transfer_arbitrator_unauthorized() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
+        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
+        transfer_arbitrated(escrow, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, escrow_wrapper);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x202)]
+    public fun test_refund_arbitrator_unauthorized() {
+        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
+        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
+        refund_arbitrated(escrow, test_scenario::ctx(scenario));
+        test_scenario::return_shared(scenario, escrow_wrapper);
     }
 }
