@@ -4,7 +4,6 @@ Ideas and improvements.
 
 ## Ideas
 
-* Quadratic vesting.
 * Signed integers.
 * Better fixed-point library.
 * Ed25519 signature utils in Sui.
@@ -13,6 +12,8 @@ Ideas and improvements.
 
 ## Improvements
 
+* `quadratic_vesting`: merge with `linear_vesting`?
+* `quadratic_vesting`: better tests.
 * `linear_vesting`: clawback capability.
 * `governance`: finish tests.
 * `merkle_proof`: unit tests for multi-proof verification.
