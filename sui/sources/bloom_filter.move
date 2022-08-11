@@ -63,7 +63,7 @@ module movemate::bloom_filter {
 
     /// @dev It initialize the Filter struct. It sets the appropriate hash count for the expected number of item
     /// @param _itemNum Expected number of items to be added
-    public fun init(_item_num: u64): Filter {
+    public fun new(_item_num: u64): Filter {
         Filter {
             bitmap: u256::zero(),
             hash_count: get_hash_count(_item_num)
@@ -97,7 +97,7 @@ module movemate::bloom_filter {
     #[test]
     public fun test_end_to_end() {
         // Test init: check hash count
-        let filter = init(10);
+        let filter = new(10);
         assert!(filter.hash_count == 37, 0); // Hash count should equal 37
         
         // Test adding elements
