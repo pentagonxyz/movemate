@@ -390,12 +390,12 @@ module movemate::u256 {
     }
 
     /// Returns `a` AND `b`.
-    public fun and(a: U256, b: U256): U256 {
+    public fun and(a: &U256, b: &U256): U256 {
         let ret = zero();
 
         let i = 0;
         while (i < WORDS) {
-            let m = get(&a, i) & get(&b, i);
+            let m = get(a, i) & get(b, i);
             put(&mut ret, i, m);
             i = i + 1;
         };
@@ -404,12 +404,12 @@ module movemate::u256 {
     }
 
     /// Returns `a` OR `b`.
-    public fun or(a: U256, b: U256): U256 {
+    public fun or(a: &U256, b: &U256): U256 {
         let ret = zero();
 
         let i = 0;
         while (i < WORDS) {
-            let m = get(&a, i) | get(&b, i);
+            let m = get(a, i) | get(b, i);
             put(&mut ret, i, m);
             i = i + 1;
         };
@@ -418,12 +418,12 @@ module movemate::u256 {
     }
 
     /// Returns `a` XOR `b`.
-    public fun xor(a: U256, b: U256): U256 {
+    public fun xor(a: &U256, b: &U256): U256 {
         let ret = zero();
 
         let i = 0;
         while (i < WORDS) {
-            let m = get(&a, i) ^ get(&b, i);
+            let m = get(a, i) ^ get(b, i);
             put(&mut ret, i, m);
             i = i + 1;
         };

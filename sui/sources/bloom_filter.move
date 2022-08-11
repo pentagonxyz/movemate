@@ -4,7 +4,6 @@
 /// @title bloom_filter
 /// @dev Probabilistic data structure for checking if an element is part of a set.
 module movemate::bloom_filter {
-    use std::bcs;
     use std::errors;
     use std::hash;
     use std::vector;
@@ -12,6 +11,7 @@ module movemate::bloom_filter {
     use movemate::u256::{Self, U256};
 
     const EHASH_COUNT_IS_ZERO: u64 = 0;
+    const EVECTOR_LENGTH_NOT_32: u64 = 1;
 
     struct Filter has copy, drop, store {
         bitmap: U256,
@@ -29,16 +29,18 @@ module movemate::bloom_filter {
     /// @param _bitmap Original bitmap
     /// @param _hash_count How many times to hash. You should use the same value with the one which is used for the original bitmap.
     /// @param _item Hash value of an item
-    public fun add_to_bitmap(_bitmap: U256, _hash_count: u8, _item: U256): U256 {
+    public fun add_to_bitmap(_bitmap: U256, _hash_count: u8, _item: vector<u8>): U256 {
         let _new_bitmap = _bitmap;
         assert!(_hash_count > 0, errors::invalid_argument(EHASH_COUNT_IS_ZERO));
+        assert!(vector::length(&_item) == 32, errors::invalid_argument(EVECTOR_LENGTH_NOT_32));
         let i: u8 = 0;
+        vector::push_back(&mut _item, 0);
         while (i < _hash_count) {
-            let seed = bcs::to_bytes(&_item); // TODO: Or better to concat u256::get?
-            vector::push_back(&mut seed, i);
-            let position = vector::pop_back(&mut hash::sha2_256(seed));
+            *vector::borrow_mut(&mut _item, 32) = i;
+            let position = vector::pop_back(&mut hash::sha2_256(_item));
             let digest = u256::shl(u256::from_u128(1), position);
-            _new_bitmap = u256::or(_bitmap, digest);
+            _new_bitmap = u256::or(&_bitmap, &digest);
+            i = i + 1;
         };
         _new_bitmap
     }
@@ -47,15 +49,16 @@ module movemate::bloom_filter {
     /// @param _bitmap Original bitmap
     /// @param _hash_count How many times to hash. You should use the same value with the one which is used for the original bitmap.
     /// @param _item Hash value of an item
-    public fun false_positive(_bitmap: U256, _hash_count: u8, _item: U256): bool {
+    public fun false_positive(_bitmap: U256, _hash_count: u8, _item: vector<u8>): bool {
         assert!(_hash_count > 0, errors::invalid_argument(EHASH_COUNT_IS_ZERO));
+        assert!(vector::length(&_item) == 32, errors::invalid_argument(EVECTOR_LENGTH_NOT_32));
         let i: u8 = 0;
+        vector::push_back(&mut _item, 0);
         while (i < _hash_count) {
-            let seed = bcs::to_bytes(&_item); // TODO: Or better to concat u256::get?
-            vector::push_back(&mut seed, i);
-            let position = vector::pop_back(&mut hash::sha2_256(seed));
+            *vector::borrow_mut(&mut _item, 32) = i;
+            let position = vector::pop_back(&mut hash::sha2_256(_item));
             let digest = u256::shl(u256::from_u128(1), position);
-            if (_bitmap != u256::or(_bitmap, digest)) return false;
+            if (_bitmap != u256::or(&_bitmap, &digest)) return false;
             i = i + 1;
         };
         true
@@ -72,26 +75,14 @@ module movemate::bloom_filter {
 
     /// @dev It updates the bitmap of the filter using the given item value
     /// @param _item Hash value of an item
-    public fun add(_filter: &mut Filter, _item: U256) {
+    public fun add(_filter: &mut Filter, _item: vector<u8>) {
         *&mut _filter.bitmap = add_to_bitmap(_filter.bitmap, _filter.hash_count, _item);
     }
 
-    /// @dev It updates the bitmap of the filter using the given item value
-    /// @param _item Hash value of an item
-    public fun add_vector(_filter: &mut Filter, _item: &vector<u8>) {
-        add(_filter, u256::from_bytes(_item))
-    }
-
     /// @dev It returns the filter may include the item or definitely now include it.
     /// @param _item Hash value of an item
-    public fun check(_filter: &Filter, _item: U256): bool {
+    public fun check(_filter: &Filter, _item: vector<u8>): bool {
         false_positive(_filter.bitmap, _filter.hash_count, _item)
-    }
-
-    /// @dev It returns the filter may include the item or definitely now include it.
-    /// @param _item Hash value of an item
-    public fun check_vector(_filter: &Filter, _item: &vector<u8>): bool {
-        check(_filter, u256::from_bytes(_item))
     }
 
     #[test]
@@ -101,12 +92,12 @@ module movemate::bloom_filter {
         assert!(filter.hash_count == 37, 0); // Hash count should equal 37
         
         // Test adding elements
-        add(&mut filter, u256::from_u128(123));
+        add(&mut filter, b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
         let bitmap_a = filter.bitmap;
-        add(&mut filter, u256::from_u128(123));
+        add(&mut filter, b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
         let bitmap_b = filter.bitmap;
         assert!(bitmap_b == bitmap_a, 1); // Adding same item should not update the bitmap
-        add(&mut filter, u256::from_u128(456));
+        add(&mut filter, b"cccccccccccccccccccccccccccccccc");
         let bitmap_c = filter.bitmap;
         assert!(bitmap_c != bitmap_b, 2); // Adding different item should update the bitmap
 
@@ -116,13 +107,13 @@ module movemate::bloom_filter {
         let i = 0;
         while (i < 10) {
             let key = hash::sha2_256(vector::singleton(*vector::borrow(&included, i)));
-            add_vector(&mut filter, &key);
+            add(&mut filter, key);
             i = i + 1;
         };
         let j = 0;
         while (j < 10) {
             let key = hash::sha2_256(vector::singleton(*vector::borrow(&included, j)));
-            let false_positive = check_vector(&filter, &key);
+            let false_positive = check(&filter, key);
             // It may exist or not
             assert!(false_positive, 3); // Should return false positive
             j + j + 1;
@@ -130,7 +121,7 @@ module movemate::bloom_filter {
         let k = 0;
         while (k < 10) {
             let key = hash::sha2_256(vector::singleton(*vector::borrow(&not_included, k)));
-            let false_positive = check_vector(&filter, &key);
+            let false_positive = check(&filter, key);
             // It definitely does not exist
             assert!(!false_positive, 4); // Should return definitely not exist
             k = k + 1;
