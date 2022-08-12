@@ -30,7 +30,6 @@ module movemate::bloom_filter {
     /// @param _hash_count How many times to hash. You should use the same value with the one which is used for the original bitmap.
     /// @param _item Hash value of an item
     public fun add_to_bitmap(_bitmap: U256, _hash_count: u8, _item: vector<u8>): U256 {
-        let _new_bitmap = _bitmap;
         assert!(_hash_count > 0, error::invalid_argument(EHASH_COUNT_IS_ZERO));
         assert!(vector::length(&_item) == 32, error::invalid_argument(EVECTOR_LENGTH_NOT_32));
         let i: u8 = 0;
@@ -39,10 +38,10 @@ module movemate::bloom_filter {
             *vector::borrow_mut(&mut _item, 32) = i;
             let position = vector::pop_back(&mut hash::sha2_256(_item));
             let digest = u256::shl(u256::from_u128(1), position);
-            _new_bitmap = u256::or(&_bitmap, &digest);
+            _bitmap = u256::or(&_bitmap, &digest);
             i = i + 1;
         };
-        _new_bitmap
+        _bitmap
     }
 
     /// @dev It returns it may exist or definitely not exist.
@@ -116,7 +115,7 @@ module movemate::bloom_filter {
             let false_positive = check(&filter, key);
             // It may exist or not
             assert!(false_positive, 3); // Should return false positive
-            j + j + 1;
+            j = j + 1;
         };
         let k = 0;
         while (k < 10) {
