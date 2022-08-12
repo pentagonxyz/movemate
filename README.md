@@ -18,6 +18,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 * `math_u128`: Standard math utilities missing in the Move language (for `u128`).
 * `merkle_proof`: Merkle proof verification utilities.
 * `pseudorandom`: Pseudorandom number generator.
+* `to_string`: `u128` to `String` conversion utilities.
 * `u256`: Unsigned 256-bit integer implementation in Move. (Thanks to Pontem.) Includes bitwise operations and `vector<u8>` conversion.
 * `vectors`: Vector utilities--specifically, comparison operators and a binary search function.
 * `virtual_block`: Replace latency auctions with gas auctions (with control over MEV rewards) via virtual blocks.

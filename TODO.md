@@ -21,3 +21,5 @@ Ideas and improvements.
 * `merkle_proof`: unit tests for multi-proof verification.
 * `governance`: make delegation optional?
 * `vector`, `merkle_proof`, etc.: fuzz testing?
+* `to_string`: support `u64`?
+* `to_string`: support `U256`?
