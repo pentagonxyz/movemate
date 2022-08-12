@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-/// @title linear_vesting
+/// @title quadratic_vesting
 /// @dev This contract handles the vesting of coins for a given beneficiary. Custody of multiple coins
 /// can be given to this contract, which will release the token to the beneficiary following a given vesting schedule.
 /// The vesting schedule is customizable through the {vestedAmount} function.
 /// Any token transferred to this contract will follow the vesting schedule as if they were locked from the beginning.
 /// Consequently, if the vesting has already started, any amount of tokens sent to this contract will (at least partly)
 /// be immediately releasable.
-module movemate::linear_vesting {
+module movemate::quadratic_vesting {
     use std::error;
     use std::option::{Self, Option};
     use std::signer;
@@ -19,11 +19,19 @@ module movemate::linear_vesting {
     use aptos_framework::coin::{Self, Coin};
     use aptos_framework::timestamp;
 
+    use movemate::math;
+
+    const SCALAR: u64 = 1 << 16;
+
     /// @dev When trying to clawback a wallet without the privilege to do so.
     const ECANNOT_CLAWBACK: u64 = 0;
 
     struct WalletInfo has store {
+        vesting_curve_a: u64,
+        vesting_curve_b: u64,
+        vesting_curve_c: u64,
         start: u64,
+        cliff: u64,
         duration: u64,
         clawbacker: Option<address>
     }
@@ -49,7 +57,17 @@ module movemate::linear_vesting {
     }
 
     /// @dev Set the beneficiary, start timestamp and vesting duration of the vesting wallet.
-    public entry fun init_wallet(admin: &signer, beneficiary: address, start_timestamp: u64, duration_seconds: u64, clawbacker: Option<address>) acquires WalletInfoCollection {
+    public entry fun init_wallet(
+        admin: &signer,
+        beneficiary: address,
+        curve_a: u64,
+        curve_b: u64,
+        curve_c: u64,
+        start_timestamp: u64,
+        cliff_seconds: u64,
+        duration_seconds: u64,
+        clawbacker: Option<address>
+    ) acquires WalletInfoCollection {
         // Create WalletInfoCollection if it doesn't exist
         let admin_address = signer::address_of(admin);
 
@@ -66,7 +84,11 @@ module movemate::linear_vesting {
 
         // Add wallet to array
         vector::push_back(collection, WalletInfo {
+            vesting_curve_a: curve_a,
+            vesting_curve_b: curve_b,
+            vesting_curve_c: curve_c,
             start: start_timestamp,
+            cliff: cliff_seconds,
             duration: duration_seconds,
             clawbacker
         });
@@ -119,13 +141,13 @@ module movemate::linear_vesting {
         let coin_store = table::borrow_mut(collection, index);
 
         // Release amount
-        let releasable = vested_amount(wallet_info.start, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, timestamp::now_seconds()) - coin_store.released;
+        let releasable = vested_amount(wallet_info.vesting_curve_a, wallet_info.vesting_curve_b, wallet_info.vesting_curve_c, wallet_info.start, wallet_info.cliff, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, timestamp::now_seconds()) - coin_store.released;
         *&mut coin_store.released = *&coin_store.released + releasable;
         let release_coin = coin::extract(&mut coin_store.coin, releasable);
         coin::deposit(beneficiary, release_coin);
     }
 
-    /// @notice Claws back coins to the admin if `clawbacker` is set.
+    /// @notice Claws back coins to the admin if `clawbacker` is enabled.
     public entry fun clawback<T>(clawbacker: &signer, admin: address, beneficiary: address, index: u64) acquires WalletInfoCollection, CoinStoreCollection {
         // Get sender address
         let sender = signer::address_of(clawbacker);
@@ -141,7 +163,7 @@ module movemate::linear_vesting {
         let coin_store = table::borrow_mut(collection, index);
 
         // Release amount
-        let releasable = vested_amount(wallet_info.start, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, timestamp::now_seconds()) - coin_store.released;
+        let releasable = vested_amount(wallet_info.vesting_curve_a, wallet_info.vesting_curve_b, wallet_info.vesting_curve_c, wallet_info.start, wallet_info.cliff, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, timestamp::now_seconds()) - coin_store.released;
         *&mut coin_store.released = *&coin_store.released + releasable;
         let release_coin = coin::extract(&mut coin_store.coin, releasable);
         coin::deposit(beneficiary, release_coin);
@@ -184,20 +206,33 @@ module movemate::linear_vesting {
         let coin_store = table::borrow(collection, index);
 
         // Return vested amount
-        let vested = vested_amount(wallet_info.start, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, timestamp::now_seconds());
+        let vested = vested_amount(wallet_info.vesting_curve_a, wallet_info.vesting_curve_b, wallet_info.vesting_curve_c, wallet_info.start, wallet_info.cliff, wallet_info.duration, coin::value(&coin_store.coin), coin_store.released, timestamp::now_seconds());
         (vested, vested - coin_store.released)
     }
 
     /// @dev Calculates the amount that has already vested. Default implementation is a linear vesting curve.
-    fun vested_amount(start: u64, duration: u64, balance: u64, already_released: u64, timestamp: u64): u64 {
-        vesting_schedule(start, duration, balance + already_released, timestamp)
+    fun vested_amount(a: u64, b: u64, c: u64, start: u64, cliff: u64, duration: u64, balance: u64, already_released: u64, timestamp: u64): u64 {
+        vesting_schedule(a, b, c, start, cliff, duration, balance + already_released, timestamp)
     }
 
     /// @dev Virtual implementation of the vesting formula. This returns the amount vested, as a function of time, for an asset given its total historical allocation.
-    fun vesting_schedule(start: u64, duration: u64, total_allocation: u64, timestamp: u64): u64 {
-        if (timestamp < start) return 0;
-        if (timestamp > start + duration) return total_allocation;
-        (total_allocation * (timestamp - start)) / duration
+   fun vesting_schedule(a: u64, b: u64, c: u64, start: u64, cliff: u64, duration: u64, total_allocation: u64, timestamp: u64): u64 {
+        // Get time delta, check domain, and convert to proportion out of SCALAR
+        let time_delta = timestamp - start;
+        if (time_delta < cliff) return 0;
+        if (time_delta >= duration) return total_allocation;
+        let progress = time_delta * SCALAR / duration;
+
+        // Evaluate quadratic trinomial where y = vested proportion of total_allocation out of SCALAR and x = progress through vesting period out of SCALAR
+        // No need to check for overflow when casting uint256 to int256 because `progress` maxes out at SCALAR and so does `(progress ** 2) / SCALAR`
+        let vested_proportion = math::quadratic(progress, a, b, c);
+
+        // Keep vested total_allocation in range [0, total]
+        if (vested_proportion <= 0) return 0;
+        if (vested_proportion >= SCALAR) return total_allocation;
+
+        // Releasable = total_allocation * vested proportion (divided by SCALAR since proportion is scaled by SCALAR)
+        total_allocation * vested_proportion / SCALAR
     }
 
     #[test_only]
@@ -232,7 +267,7 @@ module movemate::linear_vesting {
         // init wallet and asset
         let beneficiary_address = signer::address_of(&beneficiary);
         let clawbacker_address = signer::address_of(&clawbacker);
-        init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, option::some(clawbacker_address));
+        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, option::some(clawbacker_address));
         init_asset<FakeMoney>(&admin);
         let admin_address = signer::address_of(&admin);
         deposit<FakeMoney>(admin_address, beneficiary_address, 0, coin_in);
@@ -241,7 +276,7 @@ module movemate::linear_vesting {
         fast_forward_seconds(3600);
         coin::register_for_test<FakeMoney>(&beneficiary);
         release<FakeMoney>(admin_address, beneficiary_address, 0);
-        assert!(coin::balance<FakeMoney>(beneficiary_address) == 51440328, 0);
+        assert!(coin::balance<FakeMoney>(beneficiary_address) == 51427770, 0);
 
         // fast forward and claw back
         fast_forward_seconds(7200);
@@ -264,17 +299,17 @@ module movemate::linear_vesting {
 
         // init wallet and asset
         let beneficiary_address = signer::address_of(&beneficiary);
-        init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, option::none());
+        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, option::none());
 
         // init wallet and asset
         let beneficiary2_address = signer::address_of(&beneficiary2);
-        init_wallet(&admin, beneficiary2_address, timestamp::now_seconds(), 86400, option::none());
+        init_wallet(&admin, beneficiary2_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, option::none());
 
         // init wallet and asset
-        init_wallet(&admin, beneficiary2_address, timestamp::now_seconds(), 172800, option::none());
+        init_wallet(&admin, beneficiary2_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 172800, option::none());
     }
 
-    #[test(admin = @0x1000, beneficiary = @0x1001, clawbacker = @0x1002, coin_creator = @movemate, aptos_framework = @aptos_framework)]
+    #[test(admin = @0x1000, beneficiary = @0x1001, clawbacker = @1002, coin_creator = @movemate, aptos_framework = @aptos_framework)]
     #[expected_failure(abort_code = 0x50000)]
     public entry fun test_no_clawback(admin: signer, beneficiary: signer, clawbacker: signer, coin_creator: signer, aptos_framework: signer) acquires WalletInfoCollection, CoinStoreCollection {
         // start the clock
@@ -292,7 +327,7 @@ module movemate::linear_vesting {
 
         // init wallet and asset
         let beneficiary_address = signer::address_of(&beneficiary);
-        init_wallet(&admin, beneficiary_address, timestamp::now_seconds(), 86400, option::none());
+        init_wallet(&admin, beneficiary_address, 0, SCALAR, 0, timestamp::now_seconds(), 0, 86400, option::none());
         init_asset<FakeMoney>(&admin);
         let admin_address = signer::address_of(&admin);
         deposit<FakeMoney>(admin_address, beneficiary_address, 0, coin_in);

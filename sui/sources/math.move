@@ -6,6 +6,7 @@ module movemate::math {
     const ROUNDING_DOWN: u8 = 0; // Toward negative infinity
     const ROUNDING_UP: u8 = 0; // Toward infinity
     const ROUNDING_ZERO: u8 = 0; // Toward zero
+    const SCALAR: u64 = 1 << 16;
 
     /// @dev Returns the largest of two numbers.
     public fun max(a: u64, b: u64): u64 {
@@ -101,6 +102,13 @@ module movemate::math {
             result = result + 1;
         };
         result
+    }
+
+    /// @notice Calculates ax^2 + bx + c assuming all variables are scaled by 2**16.
+    public fun quadratic(x: u64, a: u64, b: u64, c: u64): u64 {
+        (exp(x, 2) / SCALAR * a / SCALAR)
+            + (b * x / SCALAR)
+            + c
     }
 
     #[test]
