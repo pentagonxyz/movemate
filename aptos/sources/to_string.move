@@ -75,7 +75,6 @@ module movemate::to_string {
         assert!(b"0x0101" == *string::bytes(&to_hex_string(257)), 1);
         assert!(b"0xbc614e" == *string::bytes(&to_hex_string(12345678)), 1);
         assert!(b"0xffffffffffffffffffffffffffffffff" == *string::bytes(&to_hex_string(MAX_U128)), 1);
-
     }
 
     #[test]
