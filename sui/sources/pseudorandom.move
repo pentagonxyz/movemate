@@ -18,7 +18,7 @@ module movemate::pseudorandom {
     use std::signer;
     use std::vector;
 
-    use sui::object;
+    use sui::object::{Self, Info};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
@@ -29,15 +29,15 @@ module movemate::pseudorandom {
 
     /// Resource that wraps an integer counter.
     struct Counter has key {
+        info: Info,
         value: u64
     }
 
-    /// Publish a `Counter` resource with value `i` under the given `root` account.
-    public fun init(root: &signer) {
-        // "Pack" (create) a Counter resource. This is a privileged operation that
+    /// Share a `Counter` resource with value `i`.
+    fun init(ctx: &mut TxContext) {
+        // Create and share a Counter resource. This is a privileged operation that
         // can only be done inside the module that declares the `Counter` resource
-        assert!(signer::address_of(root) == @movemate, errors::requires_address(ENOT_ROOT));
-        transfer::share_object(Counter { value: 0 });
+        transfer::share_object(Counter { info: object::new(ctx), value: 0 });
     }
 
     /// Increment the value of the supplied `Counter` resource.
@@ -61,7 +61,7 @@ module movemate::pseudorandom {
         let guid_id_bytes = bcs::to_bytes(&guid_id);
 
         let uid = object::new(ctx);
-        let object_id_bytes: vector<u8> = object::id_to_bytes(object::uid_as_inner(&uid));
+        let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
         object::delete(uid);
 
         let info: vector<u8> = vector::empty<u8>();
@@ -86,7 +86,7 @@ module movemate::pseudorandom {
         let guid_id_bytes = bcs::to_bytes(&guid_id);
 
         let uid = object::new(ctx);
-        let object_id_bytes: vector<u8> = object::id_to_bytes(object::uid_as_inner(&uid));
+        let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
         object::delete(uid);
 
         let info: vector<u8> = vector::empty<u8>();
@@ -110,7 +110,7 @@ module movemate::pseudorandom {
         let sender_bytes: vector<u8> = bcs::to_bytes(&tx_context::sender(ctx));
 
         let uid = object::new(ctx);
-        let object_id_bytes: vector<u8> = object::id_to_bytes(object::uid_as_inner(&uid));
+        let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
         object::delete(uid);
 
         let info: vector<u8> = vector::empty<u8>();
@@ -189,7 +189,7 @@ module movemate::pseudorandom {
         let sender_bytes: vector<u8> = bcs::to_bytes(&tx_context::sender(ctx));
 
         let uid = object::new(ctx);
-        let object_id_bytes: vector<u8> = object::id_to_bytes(object::uid_as_inner(&uid));
+        let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
         object::delete(uid);
 
         let info: vector<u8> = vector::empty<u8>();
