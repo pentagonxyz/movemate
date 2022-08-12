@@ -1,6 +1,6 @@
 # Movemate
 
-Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i.e., smart contract building blocks) built for Aptos and Sui. Movemate aims to provide all the standard libraries and modules that Move developers will commonly be using. Movemate aims for maximum efficiency, composability, and ease of implementation.
+Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i.e., smart contract building blocks) built for Aptos and Sui. Movemate aims to provide all the standard libraries and modules that Move developers will commonly be using (outside of the native modules). Movemate aims for maximum efficiency, composability, and ease of implementation.
 
 ## Modules
 
@@ -11,7 +11,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 * `date`: Date conversion library in Move.
 * `escrow` (Sui only): Very basic object escrow module on Sui.
 * `escrow_shared` (Sui only): Basic object escrow module with refunds and arbitration on Sui.
-* `governance`: On-chain tokenholder governance using coins.
+* `governance`: On-chain coinholder governance (store coins and other objects; on Aptos, retrieve a `signer` for special actions like upgrading packages).
 * `linear_vesting`: Linear vesting of coins for a given beneficiary.
 * `math`: Standard math utilities missing in the Move language (for `u64`).
 * `math_safe_precise`: `mul_div` for `u64`s while avoiding overflow and a more precise `quadratic` function.
