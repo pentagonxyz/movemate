@@ -4,6 +4,7 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 
 ## Modules
 
+* `acl`: Multi-role access control list (ACL).
 * `box`: On Aptos, send objects without the recipient having to set up a store for themselves beforehand. On Sui, transfer objects with the `store` ability but not the `key` ability.
 * `crit_bit`: [Crit-bit trees](https://cr.yp.to/critbit.html) data structure. (Thanks to Econia.)
 * `date`: Date conversion library in Move.
