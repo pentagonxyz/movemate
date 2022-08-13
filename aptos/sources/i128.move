@@ -54,11 +54,12 @@ module movemate::i128 {
 
     /// @notice Whether or not `x` is negative.
     public fun is_neg(x: &I128): bool {
-        x.bits >= U128_WITH_FIRST_BIT_SET
+        x.bits > U128_WITH_FIRST_BIT_SET
     }
 
     /// @notice Flips the sign of `x`.
     public fun neg(x: &I128): I128 {
+        if (x.bits == 0) return *x;
         I128 { bits: if (x.bits < U128_WITH_FIRST_BIT_SET) x.bits | (1 << 127) else x.bits - (1 << 127) }
     }
 

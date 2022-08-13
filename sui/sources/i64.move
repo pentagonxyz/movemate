@@ -54,11 +54,12 @@ module movemate::i64 {
 
     /// @notice Whether or not `x` is negative.
     public fun is_neg(x: &I64): bool {
-        x.bits >= U64_WITH_FIRST_BIT_SET
+        x.bits > U64_WITH_FIRST_BIT_SET
     }
 
     /// @notice Flips the sign of `x`.
     public fun neg(x: &I64): I64 {
+        if (x.bits == 0) return *x;
         I64 { bits: if (x.bits < U64_WITH_FIRST_BIT_SET) x.bits | (1 << 63) else x.bits - (1 << 63) }
     }
 
