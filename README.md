@@ -1,6 +1,8 @@
 # Movemate
 
-Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i.e., smart contract building blocks) built for Aptos and Sui. Movemate aims to provide all the standard libraries and modules that Move developers will commonly be using. Movemate aims for maximum efficiency, composability, and ease of implementation.
+**A library of module building blocks for Move on Aptos and Sui.**
+
+Movemate provides an advanced standard library of common modules in the Move ecosystem (working in tandem with the native frameworks), focusing on security, efficiency, composability, and ease of implementation.
 
 ## Modules
 
@@ -29,3 +31,36 @@ Movemate is the [Solmate](https://github.com/transmissions11/solmate) of Move (i
 * [`multisig_wallet`: Multisignature wallet for coins and arbitrary objects.](https://github.com/pentagonxyz/multisig-wallet-move)
 * [`oracle_factory` (Sui only): Create and share custom oracles, aggregating data across validator sets.](https://github.com/pentagonxyz/move-oracles)
 * [`xyk_amm`: Constant product (XY=K) AMM (like Uniswap V2).](https://github.com/pentagonxyz/xyk-amm-move)
+
+## Usage
+
+### Sui
+
+Add the following to your `Move.toml`:
+
+```
+[dependencies.Movemate]
+git = "https://github.com/pentagonxyz/movemate.git"
+subdir = "sui"
+rev = "main"
+```
+
+### Aptos
+
+Add the following to your `Move.toml`:
+
+```
+[dependencies.Movemate]
+git = "https://github.com/pentagonxyz/movemate.git"
+subdir = "aptos"
+rev = "main"
+```
+
+## Testing
+
+### Sui
+
+`sui move test --instructions 100000` (20000 should be fine but using 100000 to be safe)
+
+### Aptos
+`aptos move test`
