@@ -6,7 +6,7 @@ authors = ["David Lucid <david@pentagon.xyz>"]
 [addresses]
 std = "0x1"
 sui = "0x2"
-movemate = "0x0"
+movemate = "0xdc8a9f1bb748d40e246089e10588909d4850f4a4"
 
 [dependencies.MoveStdlib]
 git = "https://github.com/MystenLabs/sui.git"
