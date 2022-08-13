@@ -17,6 +17,7 @@ Ideas and improvements.
 
 ## Improvements
 
+* `i64` and `i128`: finish tests.
 * `math` and `math_u128`: add `abs` function, among others.
 * `quadratic_vesting`: merge with `linear_vesting`?
 * `quadratic_vesting`: better tests.
