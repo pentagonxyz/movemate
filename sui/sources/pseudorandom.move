@@ -13,9 +13,7 @@
 module movemate::pseudorandom {
     use std::bcs;
     use std::errors;
-    use std::guid;
     use std::hash;
-    use std::signer;
     use std::vector;
 
     use sui::object::{Self, Info};
@@ -47,18 +45,15 @@ module movemate::pseudorandom {
         *c_ref
     }
 
-    /// Acquire a seed using: the hash of the counter, epoch, sender address, new GUID, and new object ID.
-    fun seed(account: &signer, counter: &mut Counter, ctx: &mut TxContext): vector<u8> {
+    /// Acquire a seed using: the hash of the counter, epoch, sender address, and new object ID.
+    fun seed(sender: &address, counter: &mut Counter, ctx: &mut TxContext): vector<u8> {
         let counter_val = increment(counter);
         let counter_bytes = bcs::to_bytes(&counter_val);
 
         let epoch: u64 = tx_context::epoch(ctx);
         let epoch_bytes: vector<u8> = bcs::to_bytes(&epoch);
 
-        let sender_bytes: vector<u8> = bcs::to_bytes(&signer::address_of(account));
-
-        let guid_id = guid::id(&guid::create(account));
-        let guid_id_bytes = bcs::to_bytes(&guid_id);
+        let sender_bytes: vector<u8> = bcs::to_bytes(sender);
 
         let uid = object::new(ctx);
         let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
@@ -67,7 +62,6 @@ module movemate::pseudorandom {
         let info: vector<u8> = vector::empty<u8>();
         vector::append<u8>(&mut info, counter_bytes);
         vector::append<u8>(&mut info, sender_bytes);
-        vector::append<u8>(&mut info, guid_id_bytes);
         vector::append<u8>(&mut info, epoch_bytes);
         vector::append<u8>(&mut info, object_id_bytes);
 
@@ -75,15 +69,12 @@ module movemate::pseudorandom {
         hash
     }
 
-    /// Acquire a seed using: the hash of the epoch, sender address, new GUID, and new object ID.
-    fun seed_no_counter(account: &signer, ctx: &mut TxContext): vector<u8> {
+    /// Acquire a seed using: the hash of the epoch, sender address, and new object ID.
+    fun seed_no_counter(sender: &address, ctx: &mut TxContext): vector<u8> {
         let epoch: u64 = tx_context::epoch(ctx);
         let epoch_bytes: vector<u8> = bcs::to_bytes(&epoch);
 
-        let sender_bytes: vector<u8> = bcs::to_bytes(&signer::address_of(account));
-
-        let guid_id = guid::id(&guid::create(account));
-        let guid_id_bytes = bcs::to_bytes(&guid_id);
+        let sender_bytes: vector<u8> = bcs::to_bytes(sender);
 
         let uid = object::new(ctx);
         let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
@@ -91,7 +82,6 @@ module movemate::pseudorandom {
 
         let info: vector<u8> = vector::empty<u8>();
         vector::append<u8>(&mut info, sender_bytes);
-        vector::append<u8>(&mut info, guid_id_bytes);
         vector::append<u8>(&mut info, epoch_bytes);
         vector::append<u8>(&mut info, object_id_bytes);
 
@@ -100,7 +90,7 @@ module movemate::pseudorandom {
     }
 
     /// Acquire a seed using: the hash of the counter, epoch, sender address, and new object ID.
-    fun seed_no_signer(counter: &mut Counter, ctx: &mut TxContext): vector<u8> {
+    fun seed_no_address(counter: &mut Counter, ctx: &mut TxContext): vector<u8> {
         let counter_val = increment(counter);
         let counter_bytes = bcs::to_bytes(&counter_val);
 
@@ -123,31 +113,12 @@ module movemate::pseudorandom {
         hash
     }
 
-    /// Acquire a seed using: the hash of the counter, sender address, and new GUID.
-    fun seed_no_ctx(account: &signer, counter: &mut Counter): vector<u8> {
+    /// Acquire a seed using: the hash of the counter and sender address.
+    fun seed_no_ctx(sender: &address, counter: &mut Counter): vector<u8> {
         let counter_val = increment(counter);
         let counter_bytes = bcs::to_bytes(&counter_val);
 
-        let sender_bytes: vector<u8> = bcs::to_bytes(&signer::address_of(account));
-
-        let guid_id = guid::id(&guid::create(account));
-        let guid_id_bytes = bcs::to_bytes(&guid_id);
-
-        let info: vector<u8> = vector::empty<u8>();
-        vector::append<u8>(&mut info, counter_bytes);
-        vector::append<u8>(&mut info, sender_bytes);
-        vector::append<u8>(&mut info, guid_id_bytes);
-
-        let hash: vector<u8> = hash::sha3_256(info);
-        hash
-    }
-
-    /// Acquire a seed using: the hash of the counter.
-    fun seed_with_counter_and_address(counter: &mut Counter, sender: &address): vector<u8> {
-        let counter_val = increment(counter);
-        let counter_bytes = bcs::to_bytes(&counter_val);
-
-        let sender_bytes = bcs::to_bytes(sender);
+        let sender_bytes: vector<u8> = bcs::to_bytes(sender);
 
         let info: vector<u8> = vector::empty<u8>();
         vector::append<u8>(&mut info, counter_bytes);
@@ -163,21 +134,6 @@ module movemate::pseudorandom {
         let counter_bytes = bcs::to_bytes(&counter_val);
 
         let hash: vector<u8> = hash::sha3_256(counter_bytes);
-        hash
-    }
-
-    /// Acquire a seed using: the sender address and a new GUID.
-    fun seed_with_signer(account: &signer): vector<u8> {
-        let sender_bytes: vector<u8> = bcs::to_bytes(&signer::address_of(account));
-
-        let guid_id = guid::id(&guid::create(account));
-        let guid_id_bytes = bcs::to_bytes(&guid_id);
-
-        let info: vector<u8> = vector::empty<u8>();
-        vector::append<u8>(&mut info, sender_bytes);
-        vector::append<u8>(&mut info, guid_id_bytes);
-
-        let hash: vector<u8> = hash::sha3_256(info);
         hash
     }
 
@@ -225,40 +181,30 @@ module movemate::pseudorandom {
         (value % (high - low)) + low
     }
 
-    public fun rand_u128(account: &signer, counter: &mut Counter, ctx: &mut TxContext): u128 { rand_u128_with_seed(seed(account, counter, ctx)) }
-    public fun rand_u128_range(account: &signer, counter: &mut Counter, low: u128, high: u128, ctx: &mut TxContext): u128 { rand_u128_range_with_seed(seed(account, counter, ctx), low, high) }
-    public fun rand_u64(account: &signer, counter: &mut Counter, ctx: &mut TxContext): u64 { rand_u64_with_seed(seed(account, counter, ctx)) }
-    public fun rand_u64_range(account: &signer, counter: &mut Counter, low: u64, high: u64, ctx: &mut TxContext): u64 { rand_u64_range_with_seed(seed(account, counter, ctx), low, high) }
+    public fun rand_u128(sender: &address, counter: &mut Counter, ctx: &mut TxContext): u128 { rand_u128_with_seed(seed(sender, counter, ctx)) }
+    public fun rand_u128_range(sender: &address, counter: &mut Counter, low: u128, high: u128, ctx: &mut TxContext): u128 { rand_u128_range_with_seed(seed(sender, counter, ctx), low, high) }
+    public fun rand_u64(sender: &address, counter: &mut Counter, ctx: &mut TxContext): u64 { rand_u64_with_seed(seed(sender, counter, ctx)) }
+    public fun rand_u64_range(sender: &address, counter: &mut Counter, low: u64, high: u64, ctx: &mut TxContext): u64 { rand_u64_range_with_seed(seed(sender, counter, ctx), low, high) }
 
-    public fun rand_u128_no_counter(account: &signer, ctx: &mut TxContext): u128 { rand_u128_with_seed(seed_no_counter(account, ctx)) }
-    public fun rand_u128_range_no_counter(account: &signer, low: u128, high: u128, ctx: &mut TxContext): u128 { rand_u128_range_with_seed(seed_no_counter(account, ctx), low, high) }
-    public fun rand_u64_no_counter(account: &signer, ctx: &mut TxContext): u64 { rand_u64_with_seed(seed_no_counter(account, ctx)) }
-    public fun rand_u64_range_no_counter(account: &signer, low: u64, high: u64, ctx: &mut TxContext): u64 { rand_u64_range_with_seed(seed_no_counter(account, ctx), low, high) }
+    public fun rand_u128_no_counter(sender: &address, ctx: &mut TxContext): u128 { rand_u128_with_seed(seed_no_counter(sender, ctx)) }
+    public fun rand_u128_range_no_counter(sender: &address, low: u128, high: u128, ctx: &mut TxContext): u128 { rand_u128_range_with_seed(seed_no_counter(sender, ctx), low, high) }
+    public fun rand_u64_no_counter(sender: &address, ctx: &mut TxContext): u64 { rand_u64_with_seed(seed_no_counter(sender, ctx)) }
+    public fun rand_u64_range_no_counter(sender: &address, low: u64, high: u64, ctx: &mut TxContext): u64 { rand_u64_range_with_seed(seed_no_counter(sender, ctx), low, high) }
 
-    public fun rand_u128_no_signer(counter: &mut Counter, ctx: &mut TxContext): u128 { rand_u128_with_seed(seed_no_signer(counter, ctx)) }
-    public fun rand_u128_range_no_signer(counter: &mut Counter, low: u128, high: u128, ctx: &mut TxContext): u128 { rand_u128_range_with_seed(seed_no_signer(counter, ctx), low, high) }
-    public fun rand_u64_no_signer(counter: &mut Counter, ctx: &mut TxContext): u64 { rand_u64_with_seed(seed_no_signer(counter, ctx)) }
-    public fun rand_u64_range_no_signer(counter: &mut Counter, low: u64, high: u64, ctx: &mut TxContext): u64 { rand_u64_range_with_seed(seed_no_signer(counter, ctx), low, high) }
+    public fun rand_u128_no_address(counter: &mut Counter, ctx: &mut TxContext): u128 { rand_u128_with_seed(seed_no_address(counter, ctx)) }
+    public fun rand_u128_range_no_address(counter: &mut Counter, low: u128, high: u128, ctx: &mut TxContext): u128 { rand_u128_range_with_seed(seed_no_address(counter, ctx), low, high) }
+    public fun rand_u64_no_address(counter: &mut Counter, ctx: &mut TxContext): u64 { rand_u64_with_seed(seed_no_address(counter, ctx)) }
+    public fun rand_u64_range_no_address(counter: &mut Counter, low: u64, high: u64, ctx: &mut TxContext): u64 { rand_u64_range_with_seed(seed_no_address(counter, ctx), low, high) }
 
-    public fun rand_u128_no_ctx(account: &signer, counter: &mut Counter): u128 { rand_u128_with_seed(seed_no_ctx(account, counter)) }
-    public fun rand_u128_range_no_ctx(account: &signer, counter: &mut Counter, low: u128, high: u128): u128 { rand_u128_range_with_seed(seed_no_ctx(account, counter), low, high) }
-    public fun rand_u64_no_ctx(account: &signer, counter: &mut Counter): u64 { rand_u64_with_seed(seed_no_ctx(account, counter)) }
-    public fun rand_u64_range_no_ctx(account: &signer, counter: &mut Counter, low: u64, high: u64): u64 { rand_u64_range_with_seed(seed_no_ctx(account, counter), low, high) }
-
-    public fun rand_u128_with_counter_and_address(counter: &mut Counter, sender: &address): u128 { rand_u128_with_seed(seed_with_counter_and_address(counter, sender)) }
-    public fun rand_u128_range_with_counter_and_address(counter: &mut Counter, sender: &address, low: u128, high: u128): u128 { rand_u128_range_with_seed(seed_with_counter_and_address(counter, sender), low, high) }
-    public fun rand_u64_with_counter_and_address(counter: &mut Counter, sender: &address): u64 { rand_u64_with_seed(seed_with_counter_and_address(counter, sender)) }
-    public fun rand_u64_range_with_counter_and_address(counter: &mut Counter, sender: &address, low: u64, high: u64): u64 { rand_u64_range_with_seed(seed_with_counter_and_address(counter, sender), low, high) }
+    public fun rand_u128_no_ctx(sender: &address, counter: &mut Counter): u128 { rand_u128_with_seed(seed_no_ctx(sender, counter)) }
+    public fun rand_u128_range_no_ctx(sender: &address, counter: &mut Counter, low: u128, high: u128): u128 { rand_u128_range_with_seed(seed_no_ctx(sender, counter), low, high) }
+    public fun rand_u64_no_ctx(sender: &address, counter: &mut Counter): u64 { rand_u64_with_seed(seed_no_ctx(sender, counter)) }
+    public fun rand_u64_range_no_ctx(sender: &address, counter: &mut Counter, low: u64, high: u64): u64 { rand_u64_range_with_seed(seed_no_ctx(sender, counter), low, high) }
 
     public fun rand_u128_with_counter(counter: &mut Counter): u128 { rand_u128_with_seed(seed_with_counter(counter)) }
     public fun rand_u128_range_with_counter(counter: &mut Counter, low: u128, high: u128): u128 { rand_u128_range_with_seed(seed_with_counter(counter), low, high) }
     public fun rand_u64_with_counter(counter: &mut Counter): u64 { rand_u64_with_seed(seed_with_counter(counter)) }
     public fun rand_u64_range_with_counter(counter: &mut Counter, low: u64, high: u64): u64 { rand_u64_range_with_seed(seed_with_counter(counter), low, high) }
-
-    public fun rand_u128_with_signer(account: &signer): u128 { rand_u128_with_seed(seed_with_signer(account)) }
-    public fun rand_u128_range_with_signer(account: &signer, low: u128, high: u128): u128 { rand_u128_range_with_seed(seed_with_signer(account), low, high) }
-    public fun rand_u64_with_signer(account: &signer): u64 { rand_u64_with_seed(seed_with_signer(account)) }
-    public fun rand_u64_range_with_signer(account: &signer, low: u64, high: u64): u64 { rand_u64_range_with_seed(seed_with_signer(account), low, high) }
 
     public fun rand_u128_with_ctx(ctx: &mut TxContext): u128 { rand_u128_with_seed(seed_with_ctx(ctx)) }
     public fun rand_u128_range_with_ctx(low: u128, high: u128, ctx: &mut TxContext): u128 { rand_u128_range_with_seed(seed_with_ctx(ctx), low, high) }
