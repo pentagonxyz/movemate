@@ -66,7 +66,7 @@ module movemate::i64 {
     /// @notice Flips the sign of `x`.
     public fun neg_from(x: u64): I64 {
         let ret = from(x);
-        *&mut ret.bits = ret.bits | (1 << 63);
+        if (ret.bits > 0) *&mut ret.bits = ret.bits | (1 << 63);
         ret
     }
 

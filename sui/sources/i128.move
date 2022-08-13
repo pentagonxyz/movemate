@@ -66,7 +66,7 @@ module movemate::i128 {
     /// @notice Flips the sign of `x`.
     public fun neg_from(x: u128): I128 {
         let ret = from(x);
-        *&mut ret.bits = ret.bits | (1 << 127);
+        if (ret.bits > 0) *&mut ret.bits = ret.bits | (1 << 127);
         ret
     }
 
