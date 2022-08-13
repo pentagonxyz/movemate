@@ -60,7 +60,7 @@ rev = "main"
 
 ### Sui
 
-`sui move test --instructions 100000` (20000 should be fine but using 100000 to be safe)
+`sui move test --instructions 100000`
 
 ### Aptos
 `aptos move test`
