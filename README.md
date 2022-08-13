@@ -44,7 +44,7 @@ Add the following to your `Move.toml`:
 [dependencies.Movemate]
 git = "https://github.com/pentagonxyz/movemate.git"
 subdir = "sui"
-rev = "main"
+rev = "devnet"
 ```
 
 ### Aptos
@@ -55,7 +55,7 @@ Add the following to your `Move.toml`:
 [dependencies.Movemate]
 git = "https://github.com/pentagonxyz/movemate.git"
 subdir = "aptos"
-rev = "main"
+rev = "devnet"
 ```
 
 ## Testing
