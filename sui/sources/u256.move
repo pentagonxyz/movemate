@@ -42,6 +42,9 @@
 ///     * Could be improved with div_mod_small (current version probably would took a lot of resources for small numbers).
 ///     * Also could be improved with Knuth, TAOCP, Volume 2, section 4.3.1, Algorithm D (see link to Parity above).
 module movemate::u256 {
+    use std::bcs;
+    use std::vector;
+
     // Errors.
     /// When can't cast `U256` to `u128` (e.g. number too large).
     const ECAST_OVERFLOW: u64 = 0;
@@ -54,6 +57,9 @@ module movemate::u256 {
 
     /// When attempted to divide by zero.
     const EDIV_BY_ZERO: u64 = 3;
+
+    /// When trying to call `from_bytes` on a vector of length != 32.
+    const EVECTOR_LENGTH_NOT_32_BYTES: u64 = 4;
 
     // Constants.
 
@@ -383,6 +389,48 @@ module movemate::u256 {
         ret
     }
 
+    /// Returns `a` AND `b`.
+    public fun and(a: &U256, b: &U256): U256 {
+        let ret = zero();
+
+        let i = 0;
+        while (i < WORDS) {
+            let m = get(a, i) & get(b, i);
+            put(&mut ret, i, m);
+            i = i + 1;
+        };
+
+        ret
+    }
+
+    /// Returns `a` OR `b`.
+    public fun or(a: &U256, b: &U256): U256 {
+        let ret = zero();
+
+        let i = 0;
+        while (i < WORDS) {
+            let m = get(a, i) | get(b, i);
+            put(&mut ret, i, m);
+            i = i + 1;
+        };
+
+        ret
+    }
+
+    /// Returns `a` XOR `b`.
+    public fun xor(a: &U256, b: &U256): U256 {
+        let ret = zero();
+
+        let i = 0;
+        while (i < WORDS) {
+            let m = get(a, i) ^ get(b, i);
+            put(&mut ret, i, m);
+            i = i + 1;
+        };
+
+        ret
+    }
+
     /// Returns `U256` equals to zero.
     public fun zero(): U256 {
         U256 {
@@ -574,6 +622,39 @@ module movemate::u256 {
         };
 
         (b, overflow)
+    }
+
+    /// Converts `vector<u8>` `a` to a `U256`.
+    public fun from_bytes(a: &vector<u8>): U256 {
+        assert!(vector::length(a) == 32, EVECTOR_LENGTH_NOT_32_BYTES);
+        let ret = zero();
+        put(&mut ret, 0, ((*vector::borrow(a, 0) as u64) << 7) + ((*vector::borrow(a, 1) as u64) << 6)
+            + ((*vector::borrow(a, 2) as u64) << 5) + ((*vector::borrow(a, 3) as u64) << 4)
+            + ((*vector::borrow(a, 4) as u64) << 3) + ((*vector::borrow(a, 5) as u64) << 2)
+            + ((*vector::borrow(a, 6) as u64) << 1) + (*vector::borrow(a, 7) as u64));
+        put(&mut ret, 1, ((*vector::borrow(a, 8) as u64) << 7) + ((*vector::borrow(a, 9) as u64) << 6)
+            + ((*vector::borrow(a, 10) as u64) << 5) + ((*vector::borrow(a, 11) as u64) << 4)
+            + ((*vector::borrow(a, 12) as u64) << 3) + ((*vector::borrow(a, 13) as u64) << 2)
+            + ((*vector::borrow(a, 14) as u64) << 1) + (*vector::borrow(a, 15) as u64));
+        put(&mut ret, 2, ((*vector::borrow(a, 16) as u64) << 7) + ((*vector::borrow(a, 17) as u64) << 6)
+            + ((*vector::borrow(a, 18) as u64) << 5) + ((*vector::borrow(a, 19) as u64) << 4)
+            + ((*vector::borrow(a, 20) as u64) << 3) + ((*vector::borrow(a, 21) as u64) << 2)
+            + ((*vector::borrow(a, 22) as u64) << 1) + (*vector::borrow(a, 23) as u64));
+        put(&mut ret, 3, ((*vector::borrow(a, 24) as u64) << 7) + ((*vector::borrow(a, 25) as u64) << 6)
+            + ((*vector::borrow(a, 26) as u64) << 5) + ((*vector::borrow(a, 27) as u64) << 4)
+            + ((*vector::borrow(a, 28) as u64) << 3) + ((*vector::borrow(a, 29) as u64) << 2)
+            + ((*vector::borrow(a, 30) as u64) << 1) + (*vector::borrow(a, 31) as u64));
+        ret
+    }
+
+    /// Converts `U256` `a` to a `vector<u8>`.
+    public fun to_bytes(a: &U256): vector<u8> {
+        let ret = vector::empty<u8>();
+        vector::append(&mut ret, bcs::to_bytes(&get(a, 0)));
+        vector::append(&mut ret, bcs::to_bytes(&get(a, 1)));
+        vector::append(&mut ret, bcs::to_bytes(&get(a, 2)));
+        vector::append(&mut ret, bcs::to_bytes(&get(a, 3)));
+        ret
     }
 
     // Tests.
