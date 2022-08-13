@@ -15,6 +15,8 @@ Movemate provides an advanced standard library of common modules in the Move eco
 * `escrow` (Sui only): Very basic object escrow module on Sui.
 * `escrow_shared` (Sui only): Basic object escrow module with refunds and arbitration on Sui.
 * `governance`: On-chain coinholder governance (store coins and other objects; on Aptos, retrieve a `signer` for special actions like upgrading packages).
+* `i64`: Signed 64-bit integers.
+* `i128`: Signed 128-bit integers.
 * `linear_vesting`: Linear vesting of coins for a given beneficiary.
 * `math`: Standard math utilities missing in the Move language (for `u64`).
 * `math_safe_precise`: `mul_div` for `u64`s while avoiding overflow and a more precise `quadratic` function.
