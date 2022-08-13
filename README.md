@@ -62,7 +62,29 @@ rev = "main"
 
 ### Sui
 
-`sui move test --instructions 100000`
+```
+cd movemate/sui
+sui move test --instructions 100000
+```
 
 ### Aptos
-`aptos move test`
+
+```
+cd movemate/aptos
+aptos move test
+```
+
+## Publishing
+
+### Sui
+
+```
+sui client publish --path ./movemate/sui --gas-budget 30000
+```
+
+### Aptos
+
+```
+aptos move publish --package-dir ./movemate/aptos
+aptos move run --function-id 0x3953993C1D8DFB8BAC2DA2F4DBA6521BA3E705299760FBEE6695E38BCE712A82::pseudorandom::init
+```
