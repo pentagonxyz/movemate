@@ -7,7 +7,7 @@ authors = ["David Lucid <david@pentagon.xyz>"]
 std = "0x1"
 aptos_std = "0x1"
 aptos_framework = "0x1"
-movemate = "0xb2207be128ba3dd1de79c064495a7c97642a513d33d4313e686c33896a332f1a"
+movemate = "0x3953993C1D8DFB8BAC2DA2F4DBA6521BA3E705299760FBEE6695E38BCE712A82"
 
 [dependencies.MoveStdlib]
 git = "https://github.com/aptos-labs/aptos-core.git"

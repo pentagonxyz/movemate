@@ -33,7 +33,7 @@ module movemate::pseudorandom {
     }
 
     /// Publish a `Counter` resource with value `i` under the given `root` account.
-    public fun init(root: &signer) {
+    public entry fun init(root: &signer) {
         // "Pack" (create) a Counter resource. This is a privileged operation that
         // can only be done inside the module that declares the `Counter` resource
         assert!(signer::address_of(root) == @movemate, error::permission_denied(ENOT_ROOT));
