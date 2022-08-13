@@ -105,7 +105,7 @@ module movemate::governance {
 
     /// @notice Initiate a new forum under the signer provided.
     public entry fun init_forum<CoinType>(
-        forum: &signer,
+        account: &signer,
         voting_delay: u64,
         voting_period: u64,
         queue_period: u64,
@@ -122,8 +122,8 @@ module movemate::governance {
         vector::append(&mut seed, b"::");
         vector::append(&mut seed, type_info::struct_name(&type_info));
         vector::append(&mut seed, b">");
-        let (_, sig_cap) = account::create_resource_account(forum, seed);
-        move_to(forum, Forum<CoinType> {
+        let (forum_signer, sig_cap) = account::create_resource_account(account, seed);
+        move_to(&forum_signer, Forum<CoinType> {
             voting_delay,
             voting_period,
             queue_period,
@@ -384,6 +384,16 @@ module movemate::governance {
         timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
     }
 
+    #[test_only]
+    fun get_resource_account_address(source: &address): address {
+        let seed = b"movemate::governance::Forum<";
+        vector::append(&mut seed, bcs::to_bytes(&@movemate));
+        vector::append(&mut seed, b"::governance::FakeMoney>");
+        let address_bytes = bcs::to_bytes(source);
+        vector::append(&mut address_bytes, seed);
+        account::create_address_for_test(std::hash::sha3_256(address_bytes))
+    }
+
     #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, voter_d = @0x1004, coin_creator = @movemate, aptos_framework = @aptos_framework)]
     public entry fun test_end_to_end(forum_creator: signer, voter_a: signer, voter_b: signer, voter_c: signer, voter_d: signer, coin_creator: signer, aptos_framework: signer) acquires Forum, CoinStore, Checkpoints, Delegate {
         // start the clock
@@ -438,7 +448,7 @@ module movemate::governance {
         assert!(get_votes<FakeMoney>(voter_d_address) == 1100000000, 5);
 
         // Create proposal from address A
-        let forum_address = signer::address_of(&forum_creator);
+        let forum_address = get_resource_account_address(&signer::address_of(&forum_creator));
         create_proposal<FakeMoney>(
             forum_address,
             &voter_a,
@@ -462,13 +472,7 @@ module movemate::governance {
         );
 
         // Check signer
-        let seed = b"movemate::governance::Forum<";
-        vector::append(&mut seed, bcs::to_bytes(&@movemate));
-        vector::append(&mut seed, b"::governance::FakeMoney>");
-        let address_bytes = bcs::to_bytes(&forum_address);
-        vector::append(&mut address_bytes, seed);
-        let expected_gov_signer_address = account::create_address_for_test(std::hash::sha3_256(address_bytes));
-        assert!(signer::address_of(&gov_signer) == expected_gov_signer_address, 6);
+        assert!(signer::address_of(&gov_signer) == forum_address, 6);
 
         // clean up: we can't drop mint/burn caps so we store them
         move_to(&coin_creator, FakeMoneyCapabilities {
@@ -523,7 +527,7 @@ module movemate::governance {
         assert!(get_votes<FakeMoney>(voter_c_address) == 1100000000, 2);
 
         // Create proposal from address A
-        let forum_address = signer::address_of(&forum_creator);
+        let forum_address = get_resource_account_address(&signer::address_of(&forum_creator));
         create_proposal<FakeMoney>(
             forum_address,
             &voter_a,
@@ -593,7 +597,7 @@ module movemate::governance {
         assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 1);
 
         // Create proposal from address A
-        let forum_address = signer::address_of(&forum_creator);
+        let forum_address = get_resource_account_address(&signer::address_of(&forum_creator));
         create_proposal<FakeMoney>(
             forum_address,
             &voter_a,
@@ -662,7 +666,7 @@ module movemate::governance {
         assert!(get_votes<FakeMoney>(voter_b_address) == 400000000, 1);
 
         // Create proposal from address A
-        let forum_address = signer::address_of(&forum_creator);
+        let forum_address = get_resource_account_address(&signer::address_of(&forum_creator));
         let script_hash = transaction_context::get_script_hash();
         let byte_0_ref = vector::borrow_mut(&mut script_hash, 0);
         *byte_0_ref = if (*byte_0_ref == 123) 45 else 123; // Mess up the script hash on purpose
@@ -729,7 +733,7 @@ module movemate::governance {
         assert!(get_votes<FakeMoney>(voter_a_address) == 800000000, 0);
 
         // Attempt to create proposal from address A
-        let forum_address = signer::address_of(&forum_creator);
+        let forum_address = get_resource_account_address(&signer::address_of(&forum_creator));
         create_proposal<FakeMoney>(
             forum_address,
             &voter_a,
