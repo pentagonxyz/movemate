@@ -2,7 +2,7 @@ module movemate::fixed_point64 {
     use std::errors;
     use movemate::u256::{Self};
     //use std::vector;
-    // use std::debug;
+    use std::debug;
 
     // 64 fractional bits
     struct FixedPoint64 has copy, drop, store {
@@ -64,9 +64,12 @@ module movemate::fixed_point64 {
             u256::from_u128(multiplier.value)
         );
 
+        debug::print(&unscaled_product);
+
         // unscaled product has 128 fractional bits, so need to rescale by rshifting
         let product = u256::as_u128(u256::shr(unscaled_product, 64));
-                
+        
+        debug::print(&product);
         product
     }
 
@@ -99,15 +102,22 @@ module movemate::fixed_point64 {
 
     #[test]
     fun test_rational_create() {
-        let test_fixed = create_from_rational(1, 2);
-
         // 1/2 is 0.5, so the hex should look like [0000 0000 0000 0000].[8000 0000 0000 0000]  
         // since 8000 = 1000 0000 0000 0000 => 1/2 + 0/4 + 0/8 + ... = 0.5
-        assert!(get_raw_value(test_fixed) == 0x8000000000000000, 0);
-        //debug::print(&get_raw_value(create_from_rational(1, 3)));
+        assert!(get_raw_value(create_from_rational(1, 2)) == 0x8000000000000000, 0);
         assert!(get_raw_value(create_from_rational(1, 3)) == 0x5555555555555555, 1);
-        assert!(get_raw_value(create_from_rational(1, 4)) == 0x4000000000000000, 2);
-        assert!(get_raw_value(create_from_rational(2, 4)) == 0x8000000000000000, 3);
-        assert!(get_raw_value(create_from_rational(2^63, 2^64)) == 0x8000000000000000, 4);
+        assert!(get_raw_value(create_from_rational(2, 4)) == 0x8000000000000000, 2);
+        assert!(get_raw_value(create_from_rational(0x10000000000000000, 0x20000000000000000)) == 0x8000000000000000, 3);
+    }
+
+    #[test] 
+    fun test_multiplication() {
+        let multiplier = create_from_rational(5, 1);
+        assert!(multiply_u128(5, multiplier) == 25, 2);
+
+        // note 5 * 1/5 rounds down to zero since its represented as 0000 0000 0000 0000 1111 1111 1111 1111 or 0.9999....
+        assert!(multiply_u128(5, create_from_rational(1, 5)) == 0, 2);
+        assert!(multiply_u128(5, create_from_rational(1, 2)) == 2, 2);
+
     }
 }
