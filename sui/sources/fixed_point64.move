@@ -49,4 +49,40 @@ module movemate::fixed_point64 {
 
         FixedPoint64 { value: quotient }
     }
+
+    // multiply a u128 integer by a fixed_point number
+    public fun multiply_u128(val: u128, multiplier: FixedPoint64): u128 {
+        let unscaled_product = u256::mul(
+            u256::from_u128(val), 
+            u256::from_u128(multiplier.value)
+        );
+
+        // unscaled product has 128 fractional bits, so need to rescale by rshifting
+        let product = u256::as_u128(u256::shr(unscaled_product, 64));
+                
+        product
+    }
+    // todo this spec schema shit in https://github.com/MystenLabs/sui/blob/main/crates/sui-framework/deps/move-stdlib/sources/fixed_point32.move
+    // idk what it means
+
+    public fun divide_u128(val: u128, divisor: FixedPoint64): u128 {
+        let scaled_div = u256::shl(u256::from_u128(val), 32);
+        let quotient = u256::as_u128(u256::div(scaled_div, u256::from_u128(divisor.value)));
+
+        quotient
+    }
+
+    public fun create_from_raw_value(value: u128): FixedPoint64 {
+        FixedPoint64 { value }
+    }
+
+    // raw value getter
+    public fun get_raw_value(num: FixedPoint64): u128 {
+        num.value
+    }
+
+    // true if value is zero 
+    public fun is_zero(num: FixedPoint64): bool {
+        num.value == 0
+    }
 }
