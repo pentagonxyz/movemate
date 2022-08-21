@@ -4,6 +4,7 @@ module movemate::fixed_point64 {
     use std::vector;
     use std::debug;
 
+    // 64 fractional bits
     struct FixedPoint64 has copy, drop, store {
         value: u128
     }
@@ -33,4 +34,19 @@ module movemate::fixed_point64 {
     /// computed ratio when converting to a `FixedPoint64` would be unrepresentable
     const ERATIO_OUT_OF_RANGE: u64 = 4;
 
+
+    public fun create_from_rational(numerator: u128, denominator: u128): FixedPoint64 {
+        let cast_numerator = u256::from_u128(numerator);
+        let cast_denominator = u256::from_u128(denominator);
+
+        let scaled_numerator = u256::shl(cast_numerator, 128);
+        let scaled_denominator = u256::shl(cast_denominator, 64);
+
+        // U256 module handles overflow. 
+        let quotient = u256::as_u128(u256::div(scaled_numerator, scaled_denominator));
+
+        assert!(quotient != 0 || numerator == 0, errors::invalid_argument(ERATIO_OUT_OF_RANGE));
+
+        FixedPoint64 { value: quotient }
+    }
 }
