@@ -1,15 +1,15 @@
 module movemate::fixed_point64 {
     use std::errors;
-    use movemate::u256::{Self, U256};
-    use std::vector;
-    use std::debug;
+    use movemate::u256::{Self};
+    //use std::vector;
+    // use std::debug;
 
     // 64 fractional bits
     struct FixedPoint64 has copy, drop, store {
         value: u128
-    }
+    } 
 
-    // future reference: implement all the following.
+    // future reference
     // +	sum	uint	Sum LHS and RHS
     // -	sub	uint	Subtract RHS from LHS
     // /	div	uint	Divide LHS by RHS
@@ -20,6 +20,9 @@ module movemate::fixed_point64 {
     // &	and	uint	Bitwise AND
     // ^	xor	uint	Bitwise XOR
     // |	or	uint	Bitwise OR
+
+    // todo this spec schema stuff? in https://github.com/MystenLabs/sui/blob/main/crates/sui-framework/deps/move-stdlib/sources/fixed_point32.move
+    // cant find this stuff in docs so not priority
 
     const U128_MAX: u128 = 340282366920938463463374607431768211455;
 
@@ -36,14 +39,18 @@ module movemate::fixed_point64 {
 
 
     public fun create_from_rational(numerator: u128, denominator: u128): FixedPoint64 {
+        // make both u256 to ensure no overflow when dividing.
         let cast_numerator = u256::from_u128(numerator);
         let cast_denominator = u256::from_u128(denominator);
-
+     
+        // shift bits left
         let scaled_numerator = u256::shl(cast_numerator, 128);
         let scaled_denominator = u256::shl(cast_denominator, 64);
 
         // U256 module handles overflow. 
-        let quotient = u256::as_u128(u256::div(scaled_numerator, scaled_denominator));
+        let result = u256::div(scaled_numerator, scaled_denominator);
+
+        let quotient = u256::as_u128(result);
 
         assert!(quotient != 0 || numerator == 0, errors::invalid_argument(ERATIO_OUT_OF_RANGE));
 
@@ -62,8 +69,6 @@ module movemate::fixed_point64 {
                 
         product
     }
-    // todo this spec schema shit in https://github.com/MystenLabs/sui/blob/main/crates/sui-framework/deps/move-stdlib/sources/fixed_point32.move
-    // idk what it means
 
     public fun divide_u128(val: u128, divisor: FixedPoint64): u128 {
         let scaled_div = u256::shl(u256::from_u128(val), 32);
@@ -84,5 +89,25 @@ module movemate::fixed_point64 {
     // true if value is zero 
     public fun is_zero(num: FixedPoint64): bool {
         num.value == 0
+    }
+
+    #[test]
+    fun test_raw_create(){
+        let test_fixed = create_from_raw_value(1099494850560);
+        assert!(get_raw_value(test_fixed) == 1099494850560, 0)
+    }
+
+    #[test]
+    fun test_rational_create() {
+        let test_fixed = create_from_rational(1, 2);
+
+        // 1/2 is 0.5, so the hex should look like [0000 0000 0000 0000].[8000 0000 0000 0000]  
+        // since 8000 = 1000 0000 0000 0000 => 1/2 + 0/4 + 0/8 + ... = 0.5
+        assert!(get_raw_value(test_fixed) == 0x8000000000000000, 0);
+        //debug::print(&get_raw_value(create_from_rational(1, 3)));
+        assert!(get_raw_value(create_from_rational(1, 3)) == 0x5555555555555555, 1);
+        assert!(get_raw_value(create_from_rational(1, 4)) == 0x4000000000000000, 2);
+        assert!(get_raw_value(create_from_rational(2, 4)) == 0x8000000000000000, 3);
+        assert!(get_raw_value(create_from_rational(2^63, 2^64)) == 0x8000000000000000, 4);
     }
 }
