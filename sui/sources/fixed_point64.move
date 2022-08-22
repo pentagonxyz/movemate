@@ -59,11 +59,8 @@ module movemate::fixed_point64 {
 
     /// @notice divide a u128 integer by a `FixedPoint64` multiplier
     public fun divide_u128(val: u128, divisor: FixedPoint64): u128 {
-        debug::print(&divisor);
         let scaled_div = u256::shl(u256::from_u128(val), 64);
-        debug::print(&scaled_div);
         let quotient = u256::as_u128(u256::div(scaled_div, u256::from_u128(divisor.value)));
-        debug::print(&quotient);
 
         quotient
     }
