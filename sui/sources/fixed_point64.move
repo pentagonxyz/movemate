@@ -59,8 +59,11 @@ module movemate::fixed_point64 {
 
     /// @notice divide a u128 integer by a `FixedPoint64` multiplier
     public fun divide_u128(val: u128, divisor: FixedPoint64): u128 {
-        let scaled_div = u256::shl(u256::from_u128(val), 32);
+        debug::print(&divisor);
+        let scaled_div = u256::shl(u256::from_u128(val), 64);
+        debug::print(&scaled_div);
         let quotient = u256::as_u128(u256::div(scaled_div, u256::from_u128(divisor.value)));
+        debug::print(&quotient);
 
         quotient
     }
@@ -130,5 +133,32 @@ module movemate::fixed_point64 {
     #[expected_failure(abort_code = 0)]
     fun test_multiplication_overflow() {
         assert!(multiply_u128(U128_MAX, create_from_rational(2, 1)) == 0, 2);
+    }
+
+    // test asserts result is 1 when n/d where n = 5 and d = 5
+    #[test]
+    fun test_division_whole() {
+        // create divisor
+        let divisor = create_from_rational(5, 1);
+        // assert test result is 5
+        assert!(divide_u128(5, divisor) == 1, 1);
+    }
+
+    // test asserts result is 10 when n/d where n = 5 and d = 1/2
+    #[test]
+    fun test_division_fraction() {
+        // create divisor
+        let divisor = create_from_rational(1, 2);
+        // assert test result is 10
+        assert!(divide_u128(5, divisor) == 10, 1);
+    }
+
+    // test asserts result is 0 when n/d where n = 1 and d = 2
+    #[test]
+    fun test_division_zero() {
+        // create divisor
+        let divisor = create_from_rational(2, 1);
+        // assert test result is zero
+        assert!(divide_u128(1, divisor) == 0, 1);
     }
 }
