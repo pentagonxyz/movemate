@@ -242,8 +242,9 @@ module movemate::quadratic_vesting {
     struct FakeMoneyCapabilities has key {
         mint_cap: coin::MintCapability<FakeMoney>,
         burn_cap: coin::BurnCapability<FakeMoney>,
+        freeze_cap: coin::FreezeCapability<FakeMoney>,
     }
-    
+
     #[test_only]
     fun fast_forward_seconds(timestamp_seconds: u64) {
         timestamp::update_global_time_for_test(timestamp::now_microseconds() + timestamp_seconds * 1000000);
@@ -255,7 +256,7 @@ module movemate::quadratic_vesting {
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
         // mint fake coin
-        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
             std::string::utf8(b"Fake Money A"),
             std::string::utf8(b"FMA"),
@@ -287,8 +288,9 @@ module movemate::quadratic_vesting {
 
         // clean up: we can't drop mint/burn caps so we store them
         move_to(&coin_creator, FakeMoneyCapabilities {
-            mint_cap: mint_cap,
-            burn_cap: burn_cap,
+            burn_cap,
+            freeze_cap,
+            mint_cap
         });
     }
 
@@ -316,7 +318,7 @@ module movemate::quadratic_vesting {
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
         // mint fake coin
-        let (mint_cap, burn_cap) = coin::initialize<FakeMoney>(
+        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<FakeMoney>(
             &coin_creator,
             std::string::utf8(b"Fake Money A"),
             std::string::utf8(b"FMA"),
@@ -340,8 +342,9 @@ module movemate::quadratic_vesting {
 
         // clean up: we can't drop mint/burn caps so we store them
         move_to(&coin_creator, FakeMoneyCapabilities {
-            mint_cap: mint_cap,
-            burn_cap: burn_cap,
+            burn_cap,
+            freeze_cap,
+            mint_cap
         });
     }
 }
