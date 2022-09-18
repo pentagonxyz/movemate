@@ -3,7 +3,7 @@
 /// @title acl
 /// @notice Multi-role access control list (ACL).
 /// @dev Maps addresses to `u128`s with each bit representing the presence of (or lack of) each role.
-module movemate::acl {
+module movemate::acl_module {
     use sui::vec_map::{Self, VecMap};
 
     /// @dev When attempting to add/remove a role >= 128.

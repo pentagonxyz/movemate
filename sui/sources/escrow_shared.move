@@ -19,7 +19,7 @@ module movemate::escrow_shared {
     const ENOT_ARBITRATOR: u64 = 2;
 
     struct Escrow<T: key + store> has key {
-        info: UID,
+        id: UID,
         sender: address,
         recipient: address,
         arbitrator: Option<address>,
@@ -30,7 +30,7 @@ module movemate::escrow_shared {
     /// @param recipient The destination address of the escrowed object.
     public entry fun escrow<T: key + store>(sender: address, recipient: address, arbitrator: Option<address>, obj_in: T, ctx: &mut TxContext) {
         let escrow = Escrow<T> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             sender,
             recipient,
             arbitrator,
@@ -77,7 +77,7 @@ module movemate::escrow_shared {
 
     #[test_only]
     struct FakeObject has key, store {
-        info: UID,
+        id: UID,
         data: u64
     }
 

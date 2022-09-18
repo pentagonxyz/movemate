@@ -85,20 +85,20 @@ module movemate::governance {
     }
 
     struct ObjectStore<T> has key {
-        info: UID,
+        id: UID,
         forum_id: ID,
         store: VecMap<u64, T>,
         next_id: u64
     }
 
     struct CoinStore<phantom CoinType> has key {
-        info: UID,
+        id: UID,
         delegatee: address,
         coin: Coin<CoinType>
     }
 
     struct Delegate<phantom CoinType> has key {
-        info: UID,
+        id: UID,
         delegatee: address,
         checkpoints: vector<Checkpoint>
     }
@@ -139,7 +139,7 @@ module movemate::governance {
     // Creates a store for the specified object type in the specified governance forum.
     public fun create_object_store<CoinType, T: store>(forum: &Forum<CoinType>, ctx: &mut TxContext) {
         transfer::share_object(ObjectStore<T> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             forum_id: *object::uid_as_inner(&forum.id),
             store: vec_map::empty(),
             next_id: 0
@@ -155,7 +155,7 @@ module movemate::governance {
     /// @notice Creates a new Delegate object.
     public entry fun new_voter<CoinType>(delegatee: address, ctx: &mut TxContext) {
         transfer::share_object(Delegate<CoinType> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             delegatee,
             checkpoints: vector::empty()
         });
@@ -168,7 +168,7 @@ module movemate::governance {
 
         // Create new store
         let coin_store = CoinStore {
-            info: object::new(ctx),
+            id: object::new(ctx),
             coin: coin_in,
             delegatee: delegatee.delegatee
         };

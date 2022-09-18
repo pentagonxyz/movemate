@@ -41,7 +41,7 @@
 /// * Division:
 ///     * Could be improved with div_mod_small (current version probably would took a lot of resources for small numbers).
 ///     * Also could be improved with Knuth, TAOCP, Volume 2, section 4.3.1, Algorithm D (see link to Parity above).
-module movemate::u256 {
+module movemate::u256_type {
     use std::bcs;
     use std::vector;
 

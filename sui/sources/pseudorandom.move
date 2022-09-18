@@ -26,7 +26,7 @@ module movemate::pseudorandom {
 
     /// Resource that wraps an integer counter.
     struct Counter has key {
-        info: UID,
+        id: UID,
         value: u64
     }
 
@@ -34,7 +34,7 @@ module movemate::pseudorandom {
     fun init(ctx: &mut TxContext) {
         // Create and share a Counter resource. This is a privileged operation that
         // can only be done inside the module that declares the `Counter` resource
-        transfer::share_object(Counter { info: object::new(ctx), value: 0 });
+        transfer::share_object(Counter { id: object::new(ctx), value: 0 });
     }
 
     /// Increment the value of the supplied `Counter` resource.
