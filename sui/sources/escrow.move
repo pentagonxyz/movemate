@@ -3,12 +3,12 @@
 /// @title escrow
 /// @dev Basic escrow module: holds an object designated for a recipient until the sender approves withdrawal.
 module movemate::escrow {
-    use sui::object::{Self, Info};
+    use sui::object::{Self, UID};
     use sui::transfer;
     use sui::tx_context::TxContext;
 
     struct Escrow<T: key + store> has key {
-        info: Info,
+        id: UID,
         recipient: address,
         obj: T
     }
@@ -17,7 +17,7 @@ module movemate::escrow {
     /// @param recipient The destination address of the escrowed object.
     public entry fun escrow<T: key + store>(sender: address, recipient: address, obj_in: T, ctx: &mut TxContext) {
         let escrow = Escrow<T> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             recipient,
             obj: obj_in
         };
@@ -27,7 +27,7 @@ module movemate::escrow {
     /// @dev Transfers escrowed object to the recipient.
     public entry fun transfer<T: key + store>(escrow: Escrow<T>) {
         let Escrow {
-            info: info,
+            id: info,
             recipient: recipient,
             obj: obj,
         } = escrow;
@@ -46,7 +46,7 @@ module movemate::escrow {
 
     #[test_only]
     struct FakeObject has key, store {
-        info: Info,
+        info: ID,
         data: u64
     }
 

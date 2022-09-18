@@ -11,9 +11,9 @@ movemate = "0x0"
 [dependencies.MoveStdlib]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework/deps/move-stdlib"
-rev = "fa973184a13579108a45965f7ff0fc3f2e2dc753"
+rev = "df05544fb0cbd6d6db016e71e5facb5e7cc27988"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework"
-rev = "fa973184a13579108a45965f7ff0fc3f2e2dc753"
+rev = "df05544fb0cbd6d6db016e71e5facb5e7cc27988"

@@ -8,11 +8,10 @@
 /// @dev TODO: Finish tests.
 module movemate::governance {
     use std::ascii::{Self, String};
-    use std::errors;
     use std::vector;
 
     use sui::coin::{Self, Coin};
-    use sui::object::{Self, ID, Info};
+    use sui::object::{Self, ID, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::vec_map::{Self, VecMap};
@@ -59,7 +58,7 @@ module movemate::governance {
     const ETIMESTAMP_IN_FUTURE: u64 = 12;
 
     struct Forum<phantom CoinType> has key {
-        info: Info,
+        id: UID,
         voting_delay: u64,
         voting_period: u64,
         queue_period: u64,
@@ -70,7 +69,7 @@ module movemate::governance {
     }
 
     struct Proposal<phantom ProposalCapability> has key {
-        info: Info,
+        id: UID,
         forum_id: ID,
         name: String,
         metadata: vector<u8>,
@@ -86,20 +85,20 @@ module movemate::governance {
     }
 
     struct ObjectStore<T> has key {
-        info: Info,
+        info: UID,
         forum_id: ID,
         store: VecMap<u64, T>,
         next_id: u64
     }
 
     struct CoinStore<phantom CoinType> has key {
-        info: Info,
+        info: UID,
         delegatee: address,
         coin: Coin<CoinType>
     }
 
     struct Delegate<phantom CoinType> has key {
-        info: Info,
+        info: UID,
         delegatee: address,
         checkpoints: vector<Checkpoint>
     }
@@ -126,7 +125,7 @@ module movemate::governance {
         ctx: &mut TxContext
     ) {
         transfer::share_object(Forum<CoinType> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             voting_delay,
             voting_period,
             queue_period,
@@ -141,7 +140,7 @@ module movemate::governance {
     public fun create_object_store<CoinType, T: store>(forum: &Forum<CoinType>, ctx: &mut TxContext) {
         transfer::share_object(ObjectStore<T> {
             info: object::new(ctx),
-            forum_id: *object::info_id(&forum.info),
+            forum_id: *object::uid_as_inner(&forum.id),
             store: vec_map::empty(),
             next_id: 0
         });
@@ -184,7 +183,7 @@ module movemate::governance {
     /// @notice Lock your coins for voting in the specified forum.
     public entry fun lock_more_coins<CoinType>(coin_store: &mut CoinStore<CoinType>, coins: &mut Coin<CoinType>, amount: u64, delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
         // Input validation
-        assert!(delegatee.delegatee == coin_store.delegatee, errors::invalid_argument(EDELEGATE_ARGUMENT_MISMATCH));
+        assert!(delegatee.delegatee == coin_store.delegatee, EDELEGATE_ARGUMENT_MISMATCH);
 
         // Move coin in
         let coin_in = coin::take<CoinType>(coin::balance_mut(coins), amount, ctx);
@@ -199,7 +198,7 @@ module movemate::governance {
     /// @dev Unlock coins locked for voting.
     public entry fun unlock_coins<CoinType>(coin_store: &mut CoinStore<CoinType>, recipient: address, amount: u64, delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
         // Input validation
-        assert!(delegatee.delegatee == coin_store.delegatee, errors::invalid_argument(EDELEGATE_ARGUMENT_MISMATCH));
+        assert!(delegatee.delegatee == coin_store.delegatee, EDELEGATE_ARGUMENT_MISMATCH);
 
         // Update checkpoints
         write_checkpoint<CoinType>(delegatee, true, amount, ctx);
@@ -218,14 +217,14 @@ module movemate::governance {
     ) {
         // Validate !exists and proposer votes >= proposer threshold
         let proposer_address = tx_context::sender(ctx);
-        assert!(proposer_address == voter.delegatee, errors::invalid_argument(EDELEGATE_ARGUMENT_MISMATCH));
+        assert!(proposer_address == voter.delegatee, EDELEGATE_ARGUMENT_MISMATCH);
         let proposer_votes = get_votes(voter);
-        assert!(proposer_votes >= forum.proposal_threshold, errors::requires_role(EPROPOSER_VOTES_BELOW_THRESHOLD));
+        assert!(proposer_votes >= forum.proposal_threshold, EPROPOSER_VOTES_BELOW_THRESHOLD);
 
         // Add proposal to forum
         transfer::share_object(Proposal<ProposalCapabilityType> {
-            info: object::new(ctx),
-            forum_id: *object::info_id(&forum.info),
+            id: object::new(ctx),
+            forum_id: object::uid_to_inner(&forum.id),
             name: ascii::string(name),
             metadata,
             votes: vec_map::empty(),
@@ -244,21 +243,21 @@ module movemate::governance {
         ctx: &mut TxContext
     ) {
         // Check timestamps
-        assert!(*object::info_id(&forum.info) == proposal.forum_id, errors::invalid_argument(EFORUM_ARGUMENT_MISMATCH));
+        assert!(object::uid_to_inner(&forum.id) == proposal.forum_id, EFORUM_ARGUMENT_MISMATCH);
         let voting_start = proposal.timestamp + forum.voting_delay;
         let now = tx_context::epoch(ctx);
-        assert!(now >= voting_start, errors::invalid_state(EVOTING_NOT_STARTED));
-        assert!(now < voting_start + forum.voting_period, errors::invalid_state(EVOTING_ENDED));
+        assert!(now >= voting_start, EVOTING_NOT_STARTED);
+        assert!(now < voting_start + forum.voting_period, EVOTING_ENDED);
 
         // Get past votes
         let sender = tx_context::sender(ctx);
-        assert!(sender == voter.delegatee, errors::invalid_argument(EDELEGATE_ARGUMENT_MISMATCH));
+        assert!(sender == voter.delegatee, EDELEGATE_ARGUMENT_MISMATCH);
         let votes = get_past_votes(voter, voting_start, ctx);
 
         // Remove old vote if necessary
         if (vec_map::contains(&proposal.votes, &sender)) {
             let (_, old_vote) = vec_map::remove(&mut proposal.votes, &sender);
-            assert!(vote != old_vote, errors::already_published(EVOTE_NOT_CHANGED)); // VOTE_NOT_CHANGED
+            assert!(vote != old_vote, EVOTE_NOT_CHANGED); // VOTE_NOT_CHANGED
             if (old_vote) *&mut proposal.approval_votes = *&proposal.approval_votes - votes
             else *&mut proposal.cancellation_votes = *&proposal.cancellation_votes - votes;
         };
@@ -277,30 +276,30 @@ module movemate::governance {
         ctx: &mut TxContext
     ): GovernanceCapability {
         // Check timestamps
-        assert!(*object::info_id(&forum.info) == proposal.forum_id, errors::invalid_argument(EFORUM_ARGUMENT_MISMATCH));
+        assert!(object::uid_to_inner(&forum.id) == proposal.forum_id, EFORUM_ARGUMENT_MISMATCH);
         let post_queue = proposal.timestamp + forum.voting_delay + forum.voting_period + forum.queue_period;
         let now = tx_context::epoch(ctx);
-        assert!(now >= post_queue, errors::invalid_state(EQUEUE_PERIOD_NOT_OVER));
+        assert!(now >= post_queue, EQUEUE_PERIOD_NOT_OVER);
         let expiration = post_queue + forum.execution_window;
-        assert!(now < expiration, errors::invalid_state(EPROPOSAL_EXPIRED));
-        assert!(!proposal.executed, errors::invalid_state(EPROPOSAL_ALREADY_EXECUTED));
+        assert!(now < expiration, EPROPOSAL_EXPIRED);
+        assert!(!proposal.executed, EPROPOSAL_ALREADY_EXECUTED);
 
         // Check votes
-        assert!(proposal.approval_votes >= forum.approval_threshold, errors::invalid_state(EAPPROVAL_VOTES_BELOW_THRESHOLD));
-        assert!(proposal.cancellation_votes < forum.cancellation_threshold, errors::invalid_state(ECANCELLATION_VOTES_ABOVE_THRESHOLD));
+        assert!(proposal.approval_votes >= forum.approval_threshold, EAPPROVAL_VOTES_BELOW_THRESHOLD);
+        assert!(proposal.cancellation_votes < forum.cancellation_threshold, ECANCELLATION_VOTES_ABOVE_THRESHOLD);
 
         // Set proposal as executed
         *&mut proposal.executed = true;
 
         // Return GovernanceCapability with forum ID
-        GovernanceCapability { forum_id: *object::info_id(&forum.info) }
+        GovernanceCapability { forum_id: object::uid_to_inner(&forum.id) }
     }
 
     public fun borrow_objects<T: store>(
         object_store: &ObjectStore<T>,
         governance_capability: &GovernanceCapability
     ): &VecMap<u64, T> {
-        assert!(object_store.forum_id == governance_capability.forum_id, errors::invalid_argument(EFORUM_ARGUMENT_MISMATCH));
+        assert!(object_store.forum_id == governance_capability.forum_id, EFORUM_ARGUMENT_MISMATCH);
         &object_store.store
     }
 
@@ -308,7 +307,7 @@ module movemate::governance {
         object_store: &mut ObjectStore<T>,
         governance_capability: &GovernanceCapability
     ): &mut VecMap<u64, T> {
-        assert!(object_store.forum_id == governance_capability.forum_id, errors::invalid_argument(EFORUM_ARGUMENT_MISMATCH));
+        assert!(object_store.forum_id == governance_capability.forum_id, EFORUM_ARGUMENT_MISMATCH);
         &mut object_store.store
     }
 
@@ -328,7 +327,7 @@ module movemate::governance {
     /// Requirements:
     /// - `timestamp` must have already happened
     public fun get_past_votes<CoinType>(voter: &Delegate<CoinType>, timestamp: u64, ctx: &mut TxContext): u64 {
-        assert!(timestamp <= tx_context::epoch(ctx), errors::invalid_argument(ETIMESTAMP_IN_FUTURE));
+        assert!(timestamp <= tx_context::epoch(ctx), ETIMESTAMP_IN_FUTURE);
         checkpoints_lookup(voter, timestamp)
     }
 
@@ -366,7 +365,7 @@ module movemate::governance {
     /// TODO: Optional delegation?
     public entry fun delegate<CoinType>(coin_store: &mut CoinStore<CoinType>, old_delegatee: &mut Delegate<CoinType>, new_delegatee: &mut Delegate<CoinType>, ctx: &mut TxContext) {
         // Input validation
-        assert!(coin_store.delegatee == old_delegatee.delegatee, errors::invalid_argument(EDELEGATE_ARGUMENT_MISMATCH));
+        assert!(coin_store.delegatee == old_delegatee.delegatee, EDELEGATE_ARGUMENT_MISMATCH);
 
         // Get delegator locked balance
         let delegator_balance = coin::value(&coin_store.coin);

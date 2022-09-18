@@ -2,7 +2,6 @@
 /// @notice Vector utilities.
 /// @dev TODO: Fuzz testing?
 module movemate::vectors {
-    use std::errors;
     use std::vector;
 
     use movemate::math;
@@ -48,7 +47,7 @@ module movemate::vectors {
     public fun lt(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
         let len = vector::length(a);
-        assert!(len == vector::length(b), errors::invalid_argument(EVECTOR_LENGTH_MISMATCH));
+        assert!(len == vector::length(b), EVECTOR_LENGTH_MISMATCH);
 
         while (i < len) {
             let aa = *vector::borrow(a, i);
@@ -64,7 +63,7 @@ module movemate::vectors {
     public fun gt(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
         let len = vector::length(a);
-        assert!(len == vector::length(b), errors::invalid_argument(EVECTOR_LENGTH_MISMATCH));
+        assert!(len == vector::length(b), EVECTOR_LENGTH_MISMATCH);
 
         while (i < len) {
             let aa = *vector::borrow(a, i);
@@ -80,7 +79,7 @@ module movemate::vectors {
     public fun lte(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
         let len = vector::length(a);
-        assert!(len == vector::length(b), errors::invalid_argument(EVECTOR_LENGTH_MISMATCH));
+        assert!(len == vector::length(b), EVECTOR_LENGTH_MISMATCH);
 
         while (i < len) {
             let aa = *vector::borrow(a, i);
@@ -96,7 +95,7 @@ module movemate::vectors {
     public fun gte(a: &vector<u8>, b: &vector<u8>): bool {
         let i = 0;
         let len = vector::length(a);
-        assert!(len == vector::length(b), errors::invalid_argument(EVECTOR_LENGTH_MISMATCH));
+        assert!(len == vector::length(b), EVECTOR_LENGTH_MISMATCH);
 
         while (i < len) {
             let aa = *vector::borrow(a, i);

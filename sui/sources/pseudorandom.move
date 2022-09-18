@@ -12,11 +12,10 @@
 /// generate random numbers; try a more secure way.
 module movemate::pseudorandom {
     use std::bcs;
-    use std::errors;
     use std::hash;
     use std::vector;
 
-    use sui::object::{Self, Info};
+    use sui::object::{Self, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
@@ -27,7 +26,7 @@ module movemate::pseudorandom {
 
     /// Resource that wraps an integer counter.
     struct Counter has key {
-        info: Info,
+        info: UID,
         value: u64
     }
 
@@ -56,7 +55,7 @@ module movemate::pseudorandom {
         let sender_bytes: vector<u8> = bcs::to_bytes(sender);
 
         let uid = object::new(ctx);
-        let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
+        let object_id_bytes: vector<u8> = object::uid_to_bytes(&uid);
         object::delete(uid);
 
         let info: vector<u8> = vector::empty<u8>();
@@ -77,7 +76,7 @@ module movemate::pseudorandom {
         let sender_bytes: vector<u8> = bcs::to_bytes(sender);
 
         let uid = object::new(ctx);
-        let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
+        let object_id_bytes: vector<u8> = object::uid_to_bytes(&uid);
         object::delete(uid);
 
         let info: vector<u8> = vector::empty<u8>();
@@ -100,7 +99,7 @@ module movemate::pseudorandom {
         let sender_bytes: vector<u8> = bcs::to_bytes(&tx_context::sender(ctx));
 
         let uid = object::new(ctx);
-        let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
+        let object_id_bytes: vector<u8> = object::uid_to_bytes(&uid);
         object::delete(uid);
 
         let info: vector<u8> = vector::empty<u8>();
@@ -145,7 +144,7 @@ module movemate::pseudorandom {
         let sender_bytes: vector<u8> = bcs::to_bytes(&tx_context::sender(ctx));
 
         let uid = object::new(ctx);
-        let object_id_bytes: vector<u8> = object::info_id_bytes(&uid);
+        let object_id_bytes: vector<u8> = object::uid_to_bytes(&uid);
         object::delete(uid);
 
         let info: vector<u8> = vector::empty<u8>();
@@ -164,7 +163,7 @@ module movemate::pseudorandom {
 
     /// Generate a random integer range in [low, high).
     public fun rand_u128_range_with_seed(_seed: vector<u8>, low: u128, high: u128): u128 {
-        assert!(high > low, errors::invalid_argument(EHIGH_ARG_GREATER_THAN_LOW_ARG));
+        assert!(high > low, EHIGH_ARG_GREATER_THAN_LOW_ARG);
         let value = rand_u128_with_seed(_seed);
         (value % (high - low)) + low
     }
@@ -176,7 +175,7 @@ module movemate::pseudorandom {
 
     /// Generate a random integer range in [low, high).
     public fun rand_u64_range_with_seed(_seed: vector<u8>, low: u64, high: u64): u64 {
-        assert!(high > low, errors::invalid_argument(EHIGH_ARG_GREATER_THAN_LOW_ARG));
+        assert!(high > low, EHIGH_ARG_GREATER_THAN_LOW_ARG);
         let value = rand_u64_with_seed(_seed);
         (value % (high - low)) + low
     }

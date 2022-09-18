@@ -8,11 +8,10 @@
 /// Consequently, if the vesting has already started, any amount of tokens sent to this contract will (at least partly)
 /// be immediately releasable.
 module movemate::quadratic_vesting {
-    use std::errors;
     use std::option::{Self, Option};
 
     use sui::coin::{Self, Coin};
-    use sui::object::{Self, ID, Info};
+    use sui::object::{Self, ID, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
@@ -24,7 +23,7 @@ module movemate::quadratic_vesting {
     const EWRONG_CLAWBACK_CAPABILITY: u64 = 0;
 
     struct Wallet<phantom T> has key {
-        info: Info,
+        info: UID,
         beneficiary: address,
         coin: Coin<T>,
         released: u64,
@@ -37,7 +36,7 @@ module movemate::quadratic_vesting {
     }
 
     struct ClawbackCapability has key, store {
-        info: Info,
+        info: UID,
         wallet_id: ID
     }
 
@@ -65,7 +64,7 @@ module movemate::quadratic_vesting {
             cliff,
             duration
         };
-        if (option::is_some(&clawbacker)) transfer::transfer(ClawbackCapability { info: object::new(ctx), wallet_id: *object::id(&wallet) }, option::destroy_some(clawbacker));
+        if (option::is_some(&clawbacker)) transfer::transfer(ClawbackCapability { info: object::new(ctx), wallet_id: object::id(&wallet) }, option::destroy_some(clawbacker));
         transfer::share_object(wallet);
     }
 
@@ -92,7 +91,7 @@ module movemate::quadratic_vesting {
             cliff,
             duration
         };
-        let clawback_cap = ClawbackCapability { info: object::new(ctx), wallet_id: *object::id(&wallet) };
+        let clawback_cap = ClawbackCapability { info: object::new(ctx), wallet_id: object::id(&wallet) };
         transfer::share_object(wallet);
         clawback_cap
     }
@@ -123,7 +122,7 @@ module movemate::quadratic_vesting {
             info: info,
             wallet_id: wallet_id
         } = clawback_cap;
-        assert!(wallet_id == *object::id(wallet), errors::requires_capability(EWRONG_CLAWBACK_CAPABILITY));
+        assert!(wallet_id == object::id(wallet), EWRONG_CLAWBACK_CAPABILITY);
         object::delete(info);
 
         // Release amount
@@ -139,7 +138,7 @@ module movemate::quadratic_vesting {
 
     /// @notice Claws back coins to the `recipient` if enabled.
     public entry fun clawback_to<T>(wallet: &mut Wallet<T>, clawback_cap: ClawbackCapability, recipient: address, ctx: &mut TxContext) {
-        coin::transfer(clawback(wallet, clawback_cap, ctx), recipient)
+        transfer::transfer(clawback(wallet, clawback_cap, ctx), recipient)
     }
 
     /// @dev Destroys a clawback capability.

@@ -1,17 +1,17 @@
 /// @title box
 /// @notice Generalized box for transferring objects that only have `store` but not `key`.
 module movemate::box {
-    use sui::object::{Self, Info};
+    use sui::object::{Self, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
     struct Box<T: store> has key, store {
-        info: Info,
+        info: UID,
         obj: T
     }
 
     struct PrivateBox<T: store> has key, store {
-        info: Info,
+        info: UID,
         obj: T,
         sender: address
     }

@@ -15,8 +15,6 @@
 /// second    | 0 ... 59      |
 /// dayOfWeek | 1 ... 7       | 1 = Monday, ..., 7 = Sunday
 module movemate::date {
-    use std::errors;
-
     const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
     const SECONDS_PER_HOUR: u64 = 60 * 60;
     const SECONDS_PER_MINUTE: u64 = 60;
@@ -49,7 +47,7 @@ module movemate::date {
     //      - offset
     // ------------------------------------------------------------------------
     public fun days_from_date(_year: u64, _month: u64, _day: u64): u64 {
-        assert!(_year >= 1970, errors::invalid_argument(EYEAR_BEFORE_1970));
+        assert!(_year >= 1970, EYEAR_BEFORE_1970);
         let monthMinus14DividedBy12TimesNegative1 = if (_month < 3) 1 else 0;
         let __days = _day
             + 1461 * (_year + 4800 - monthMinus14DividedBy12TimesNegative1) / 4;
@@ -196,7 +194,7 @@ module movemate::date {
         let days_in_month = get_days_in_year_month(year, month);
         if (day > days_in_month) day = days_in_month;
         let new_timestamp = days_from_date(year, month, day) * SECONDS_PER_DAY + timestamp % SECONDS_PER_DAY;
-        assert!(new_timestamp >= timestamp, errors::internal(EADDITION_ASSERTION_FAILED));
+        assert!(new_timestamp >= timestamp, EADDITION_ASSERTION_FAILED);
         new_timestamp
     }
 
@@ -208,7 +206,7 @@ module movemate::date {
         let days_in_month = get_days_in_year_month(year, month);
         if (day > days_in_month) day = days_in_month;
         let new_timestamp = days_from_date(year, month, day) * SECONDS_PER_DAY + timestamp % SECONDS_PER_DAY;
-        assert!(new_timestamp >= timestamp, errors::internal(EADDITION_ASSERTION_FAILED));
+        assert!(new_timestamp >= timestamp, EADDITION_ASSERTION_FAILED);
         new_timestamp
     }
 
@@ -234,7 +232,7 @@ module movemate::date {
         let days_in_month = get_days_in_year_month(year, month);
         if (day > days_in_month) day = days_in_month;
         let new_timestamp = days_from_date(year, month, day) * SECONDS_PER_DAY + timestamp % SECONDS_PER_DAY;
-        assert!(new_timestamp <= timestamp, errors::internal(ESUBTRACTION_ASSERTION_FAILED));
+        assert!(new_timestamp <= timestamp, ESUBTRACTION_ASSERTION_FAILED);
         new_timestamp
     }
     public fun sub_months(timestamp: u64, _months: u64): u64 {
@@ -245,7 +243,7 @@ module movemate::date {
         let days_in_month = get_days_in_year_month(year, month);
         if (day > days_in_month) day = days_in_month;
         let new_timestamp = days_from_date(year, month, day) * SECONDS_PER_DAY + timestamp % SECONDS_PER_DAY;
-        assert!(new_timestamp <= timestamp, errors::internal(ESUBTRACTION_ASSERTION_FAILED));
+        assert!(new_timestamp <= timestamp, ESUBTRACTION_ASSERTION_FAILED);
         new_timestamp
     }
 
@@ -266,36 +264,36 @@ module movemate::date {
     }
 
     public fun diff_years(from_timestamp: u64, to_timestamp: u64): u64 {
-        assert!(from_timestamp <= to_timestamp, errors::invalid_argument(EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP));
+        assert!(from_timestamp <= to_timestamp, EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP);
         let (from_year, _, _) = days_to_date(from_timestamp / SECONDS_PER_DAY);
         let (to_year, _, _) = days_to_date(to_timestamp / SECONDS_PER_DAY);
         to_year - from_year
     }
 
     public fun diff_months(from_timestamp: u64, to_timestamp: u64): u64 {
-        assert!(from_timestamp <= to_timestamp, errors::invalid_argument(EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP));
+        assert!(from_timestamp <= to_timestamp, EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP);
         let (from_year, from_month, _) = days_to_date(from_timestamp / SECONDS_PER_DAY);
         let (to_year, to_month, _) = days_to_date(to_timestamp / SECONDS_PER_DAY);
         to_year * 12 + to_month - from_year * 12 - from_month
     }
 
     public fun diff_days(from_timestamp: u64, to_timestamp: u64): u64 {
-        assert!(from_timestamp <= to_timestamp, errors::invalid_argument(EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP));
+        assert!(from_timestamp <= to_timestamp, EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP);
         (to_timestamp - from_timestamp) / SECONDS_PER_DAY
     }
 
     public fun diff_hours(from_timestamp: u64, to_timestamp: u64): u64 {
-        assert!(from_timestamp <= to_timestamp, errors::invalid_argument(EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP));
+        assert!(from_timestamp <= to_timestamp, EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP);
         (to_timestamp - from_timestamp) / SECONDS_PER_HOUR
     }
 
     public fun diff_minutes(from_timestamp: u64, to_timestamp: u64): u64 {
-        assert!(from_timestamp <= to_timestamp, errors::invalid_argument(EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP));
+        assert!(from_timestamp <= to_timestamp, EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP);
         (to_timestamp - from_timestamp) / SECONDS_PER_MINUTE
     }
 
     public fun diff_seconds(from_timestamp: u64, to_timestamp: u64): u64 {
-        assert!(from_timestamp <= to_timestamp, errors::invalid_argument(EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP));
+        assert!(from_timestamp <= to_timestamp, EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP);
         to_timestamp - from_timestamp
     }
 

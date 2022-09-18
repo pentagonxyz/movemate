@@ -2,7 +2,6 @@
 /// @notice Signed 64-bit integers in Move.
 /// @dev TODO: Pass in params by value instead of by ref to make usage easier?
 module movemate::i64 {
-    use std::errors;
 
     /// @dev Maximum I64 value as a u64.
     const MAX_I64_AS_U64: u64 = (1 << 63) - 1;
@@ -32,7 +31,7 @@ module movemate::i64 {
 
     /// @notice Casts a `u64` to an `I64`.
     public fun from(x: u64): I64 {
-        assert!(x <= MAX_I64_AS_U64, errors::invalid_argument(ECONVERSION_FROM_U64_OVERFLOW));
+        assert!(x <= MAX_I64_AS_U64, ECONVERSION_FROM_U64_OVERFLOW);
         I64 { bits: x }
     }
 
@@ -43,7 +42,7 @@ module movemate::i64 {
 
     /// @notice Casts an `I64` to a `u64`.
     public fun as_u64(x: &I64): u64 {
-        assert!(x.bits < U64_WITH_FIRST_BIT_SET, errors::invalid_argument(ECONVERSION_TO_U64_UNDERFLOW));
+        assert!(x.bits < U64_WITH_FIRST_BIT_SET, ECONVERSION_TO_U64_UNDERFLOW);
         x.bits
     }
 

@@ -3,10 +3,9 @@
 /// @title escrow_shared
 /// @dev Basic escrow module with refunds and an arbitrator: holds an object designated for a recipient until the sender approves withdrawal, the recipient refunds the sender, or the arbitrator does one of the two.
 module movemate::escrow_shared {
-    use std::errors;
     use std::option::{Self, Option};
 
-    use sui::object::{Self, Info};
+    use sui::object::{Self, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
@@ -20,7 +19,7 @@ module movemate::escrow_shared {
     const ENOT_ARBITRATOR: u64 = 2;
 
     struct Escrow<T: key + store> has key {
-        info: Info,
+        info: UID,
         sender: address,
         recipient: address,
         arbitrator: Option<address>,
@@ -42,25 +41,25 @@ module movemate::escrow_shared {
 
     /// @dev Transfers escrowed object to the recipient.
     public entry fun transfer<T: key + store>(escrow: &mut Escrow<T>, ctx: &mut TxContext) {
-        assert!(tx_context::sender(ctx) == escrow.sender, errors::requires_address(ENOT_SENDER));
+        assert!(tx_context::sender(ctx) == escrow.sender, ENOT_SENDER);
         transfer::transfer(option::extract(&mut escrow.obj), escrow.recipient);
     }
 
     /// @dev Refunds escrowed object to the sender.
     public entry fun refund<T: key + store>(escrow: &mut Escrow<T>, ctx: &mut TxContext) {
-        assert!(tx_context::sender(ctx) == escrow.recipient, errors::requires_address(ENOT_RECIPIENT));
+        assert!(tx_context::sender(ctx) == escrow.recipient, ENOT_RECIPIENT);
         transfer::transfer(option::extract(&mut escrow.obj), escrow.sender);
     }
 
     /// @dev Transfers escrowed object to the recipient.
     public entry fun transfer_arbitrated<T: key + store>(escrow: &mut Escrow<T>, ctx: &mut TxContext) {
-        assert!(option::is_some(&escrow.arbitrator) && tx_context::sender(ctx) == *option::borrow(&escrow.arbitrator), errors::requires_address(ENOT_ARBITRATOR));
+        assert!(option::is_some(&escrow.arbitrator) && tx_context::sender(ctx) == *option::borrow(&escrow.arbitrator), ENOT_ARBITRATOR);
         transfer::transfer(option::extract(&mut escrow.obj), escrow.recipient);
     }
 
     /// @dev Refunds escrowed object to the sender.
     public entry fun refund_arbitrated<T: key + store>(escrow: &mut Escrow<T>, ctx: &mut TxContext) {
-        assert!(option::is_some(&escrow.arbitrator) && tx_context::sender(ctx) == *option::borrow(&escrow.arbitrator), errors::requires_address(ENOT_ARBITRATOR));
+        assert!(option::is_some(&escrow.arbitrator) && tx_context::sender(ctx) == *option::borrow(&escrow.arbitrator), ENOT_ARBITRATOR);
         transfer::transfer(option::extract(&mut escrow.obj), escrow.sender);
     }
 
@@ -78,7 +77,7 @@ module movemate::escrow_shared {
 
     #[test_only]
     struct FakeObject has key, store {
-        info: Info,
+        info: UID,
         data: u64
     }
 

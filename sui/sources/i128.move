@@ -2,8 +2,6 @@
 /// @notice Signed 128-bit integers in Move.
 /// @dev TODO: Pass in params by value instead of by ref to make usage easier?
 module movemate::i128 {
-    use std::errors;
-
     /// @dev Maximum I128 value as a u128.
     const MAX_I128_AS_U128: u128 = (1 << 127) - 1;
 
@@ -32,7 +30,7 @@ module movemate::i128 {
 
     /// @notice Casts a `u128` to an `I128`.
     public fun from(x: u128): I128 {
-        assert!(x <= MAX_I128_AS_U128, errors::invalid_argument(ECONVERSION_FROM_U128_OVERFLOW));
+        assert!(x <= MAX_I128_AS_U128, ECONVERSION_FROM_U128_OVERFLOW);
         I128 { bits: x }
     }
 
@@ -43,7 +41,7 @@ module movemate::i128 {
 
     /// @notice Casts an `I128` to a `u128`.
     public fun as_u128(x: &I128): u128 {
-        assert!(x.bits < U128_WITH_FIRST_BIT_SET, errors::invalid_argument(ECONVERSION_TO_U128_UNDERFLOW));
+        assert!(x.bits < U128_WITH_FIRST_BIT_SET, ECONVERSION_TO_U128_UNDERFLOW);
         x.bits
     }
 

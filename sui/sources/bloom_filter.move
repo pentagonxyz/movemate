@@ -4,7 +4,6 @@
 /// @title bloom_filter
 /// @dev Probabilistic data structure for checking if an element is part of a set.
 module movemate::bloom_filter {
-    use std::errors;
     use std::hash;
     use std::vector;
 
@@ -30,8 +29,8 @@ module movemate::bloom_filter {
     /// @param _hash_count How many times to hash. You should use the same value with the one which is used for the original bitmap.
     /// @param _item Hash value of an item
     public fun add_to_bitmap(_bitmap: U256, _hash_count: u8, _item: vector<u8>): U256 {
-        assert!(_hash_count > 0, errors::invalid_argument(EHASH_COUNT_IS_ZERO));
-        assert!(vector::length(&_item) == 32, errors::invalid_argument(EVECTOR_LENGTH_NOT_32));
+        assert!(_hash_count > 0, EHASH_COUNT_IS_ZERO);
+        assert!(vector::length(&_item) == 32, EVECTOR_LENGTH_NOT_32);
         let i: u8 = 0;
         vector::push_back(&mut _item, 0);
         while (i < _hash_count) {
@@ -49,8 +48,8 @@ module movemate::bloom_filter {
     /// @param _hash_count How many times to hash. You should use the same value with the one which is used for the original bitmap.
     /// @param _item Hash value of an item
     public fun false_positive(_bitmap: U256, _hash_count: u8, _item: vector<u8>): bool {
-        assert!(_hash_count > 0, errors::invalid_argument(EHASH_COUNT_IS_ZERO));
-        assert!(vector::length(&_item) == 32, errors::invalid_argument(EVECTOR_LENGTH_NOT_32));
+        assert!(_hash_count > 0, EHASH_COUNT_IS_ZERO);
+        assert!(vector::length(&_item) == 32, EVECTOR_LENGTH_NOT_32);
         let i: u8 = 0;
         vector::push_back(&mut _item, 0);
         while (i < _hash_count) {
