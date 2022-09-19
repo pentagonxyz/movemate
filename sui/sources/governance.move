@@ -19,43 +19,44 @@ module movemate::governance {
     use movemate::math;
 
     /// @dev When trying to supply a `Delegate` argument that does not match the supplied `CoinStore` delegate argument (in the case of locking and unlocking coins) or transaction sender (in the case of posting or voting on a proposal).
-    const EDELEGATE_ARGUMENT_MISMATCH: u64 = 0;
-
-    /// @dev When the proposer's votes are below the threshold required to create a proposal.
-    const EPROPOSER_VOTES_BELOW_THRESHOLD: u64 = 1;
+    const EDELEGATE_ARGUMENT_MISMATCH: u64 = 0x10000;
 
     /// @dev When trying to supply a `Forum` argument that does not match the supplied `Proposal` argument.
-    const EFORUM_ARGUMENT_MISMATCH: u64 = 2;
-
-    /// @dev When trying to vote when the voting period has not yet started.
-    const EVOTING_NOT_STARTED: u64 = 3;
-
-    /// @dev When trying to vote when the voting period has ended.
-    const EVOTING_ENDED: u64 = 4;
-
-    /// @dev When trying to cast the same vote for the same proposal twice.
-    const EVOTE_NOT_CHANGED: u64 = 5;
-
-    /// @dev When trying to execute a proposal whose queue period has not yet ended.
-    const EQUEUE_PERIOD_NOT_OVER: u64 = 6;
-
-    /// @dev When trying to execute an expired proposal--i.e., one whose execution window has passed.
-    const EPROPOSAL_EXPIRED: u64 = 7;
-
-    /// @dev When trying to execute a proposal that has already been executed.
-    const EPROPOSAL_ALREADY_EXECUTED: u64 = 8;
-
-    /// @dev When trying to execute a proposal from the wrong script.
-    const ESCRIPT_HASH_MISMATCH: u64 = 9;
-
-    /// @dev When trying to execute an unapproved proposal.
-    const EAPPROVAL_VOTES_BELOW_THRESHOLD: u64 = 10;
-
-    /// @dev When trying to execute a cancelled proposal.
-    const ECANCELLATION_VOTES_ABOVE_THRESHOLD: u64 = 11;
+    const EFORUM_ARGUMENT_MISMATCH: u64 = 0x10001;
 
     /// @dev When trying to `get_past_votes` for a timestamp in the future.
-    const ETIMESTAMP_IN_FUTURE: u64 = 12;
+    const ETIMESTAMP_IN_FUTURE: u64 = 0x10002;
+
+    /// @dev When the proposer's votes are below the threshold required to create a proposal.
+    const EPROPOSER_VOTES_BELOW_THRESHOLD: u64 = 0xB0000;
+
+    /// @dev When trying to execute a proposal from the wrong script.
+    const ESCRIPT_HASH_MISMATCH: u64 = 0xB0001;
+
+    /// @dev When trying to vote when the voting period has not yet started.
+    const EVOTING_NOT_STARTED: u64 = 0x30000;
+
+    /// @dev When trying to vote when the voting period has ended.
+    const EVOTING_ENDED: u64 = 0x30001;
+
+    /// @dev When trying to cast the same vote for the same proposal twice.
+    const EVOTE_NOT_CHANGED: u64 = 0x30002;
+
+    /// @dev When trying to execute a proposal whose queue period has not yet ended.
+    const EQUEUE_PERIOD_NOT_OVER: u64 = 0x30003;
+
+    /// @dev When trying to execute an expired proposal--i.e., one whose execution window has passed.
+    const EPROPOSAL_EXPIRED: u64 = 0x30004;
+
+    /// @dev When trying to execute a proposal that has already been executed.
+    const EPROPOSAL_ALREADY_EXECUTED: u64 = 0x30005;
+
+    /// @dev When trying to execute an unapproved proposal.
+    const EAPPROVAL_VOTES_BELOW_THRESHOLD: u64 = 0x30006;
+
+    /// @dev When trying to execute a cancelled proposal.
+    const ECANCELLATION_VOTES_ABOVE_THRESHOLD: u64 = 0x30007;
+
 
     struct Forum<phantom CoinType> has key {
         id: UID,

@@ -28,10 +28,10 @@ module movemate::date {
     const DOW_SAT: u64 = 6;
     const DOW_SUN: u64 = 7;
 
-    const EYEAR_BEFORE_1970: u64 = 0;
-    const EADDITION_ASSERTION_FAILED: u64 = 1;
-    const ESUBTRACTION_ASSERTION_FAILED: u64 = 2;
-    const EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP: u64 = 3;
+    const EYEAR_BEFORE_1970: u64 = 0x10000;
+    const EADDITION_ASSERTION_FAILED: u64 = 0xB0001;
+    const ESUBTRACTION_ASSERTION_FAILED: u64 = 0xB0002;
+    const EFROM_TIMESTAMP_LATER_THAN_TO_TIMESTAMP: u64 = 0xB0003;
 
     // ------------------------------------------------------------------------
     // Calculate the number of days from 1970/01/01 to year/month/day using

@@ -9,8 +9,8 @@ module movemate::bloom_filter {
 
     use movemate::u256_type::{Self, U256};
 
-    const EHASH_COUNT_IS_ZERO: u64 = 0;
-    const EVECTOR_LENGTH_NOT_32: u64 = 1;
+    const EHASH_COUNT_IS_ZERO: u64 = 0x10000;
+    const EVECTOR_LENGTH_NOT_32: u64 = 0x10001;
 
     struct Filter has copy, drop, store {
         bitmap: U256,

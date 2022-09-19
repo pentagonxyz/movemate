@@ -7,7 +7,7 @@ module movemate::acl_module {
     use sui::vec_map::{Self, VecMap};
 
     /// @dev When attempting to add/remove a role >= 128.
-    const EROLE_NUMBER_TOO_LARGE: u64 = 0;
+    const EROLE_NUMBER_TOO_LARGE: u64 = 0x10000;
 
     /// @dev Maps addresses to `u128`s with each bit representing the presence of (or lack of) each role.
     struct ACL has store {
