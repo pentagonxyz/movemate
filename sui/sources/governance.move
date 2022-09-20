@@ -141,7 +141,7 @@ module movemate::governance {
     public fun create_object_store<CoinType, T: store>(forum: &Forum<CoinType>, ctx: &mut TxContext) {
         transfer::share_object(ObjectStore<T> {
             id: object::new(ctx),
-            forum_id: *object::uid_as_inner(&forum.id),
+            forum_id: object::uid_to_inner(&forum.id),
             store: vec_map::empty(),
             next_id: 0
         });
