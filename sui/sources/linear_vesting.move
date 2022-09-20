@@ -16,7 +16,7 @@ module movemate::linear_vesting {
     use sui::tx_context::{Self, TxContext};
 
     /// @dev When trying to clawback a wallet with the wrong wallet's capability.
-    const EWRONG_CLAWBACK_CAPABILITY: u64 = 0;
+    const EWRONG_CLAWBACK_CAPABILITY: u64 = 0x50000;
 
     struct Wallet<phantom T> has key {
         id: UID,

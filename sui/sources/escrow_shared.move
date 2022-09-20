@@ -10,13 +10,13 @@ module movemate::escrow_shared {
     use sui::tx_context::{Self, TxContext};
 
     /// @dev When trying to transfer escrowed object to the recipient but you are not the sender.
-    const ENOT_SENDER: u64 = 0;
+    const ENOT_SENDER: u64 = 0x10000;
 
     /// @dev When trying to refund escrowed object to the sender but you are not the recipient.
-    const ENOT_RECIPIENT: u64 = 1;
+    const ENOT_RECIPIENT: u64 = 0x10001;
 
     /// @dev When trying to arbitrate an escrowed object but you are not the arbitrator.
-    const ENOT_ARBITRATOR: u64 = 2;
+    const ENOT_ARBITRATOR: u64 = 0x10002;
 
     struct Escrow<T: key + store> has key {
         id: UID,

@@ -8,7 +8,7 @@ module movemate::vectors {
 
     /// @dev When you supply vectors of different lengths to a function requiring equal-length vectors.
     /// TODO: Support variable length vectors?
-    const EVECTOR_LENGTH_MISMATCH: u64 = 0;
+    const EVECTOR_LENGTH_MISMATCH: u64 = 0x10000;
 
     /// @dev Searches a sorted `vec` and returns the first index that contains
     /// a value greater or equal to `element`. If no such index exists (i.e. all

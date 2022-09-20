@@ -23,7 +23,7 @@ module movemate::merkle_proof {
     use movemate::vectors;
 
     /// @dev When an invalid multi-proof is supplied. Proof flags length must equal proof length + leaves length - 1.
-    const EINVALID_MULTI_PROOF: u64 = 0;
+    const EINVALID_MULTI_PROOF: u64 = 0x10000;
 
     /// @dev Returns true if a `leaf` can be proved to be a part of a Merkle tree
     /// defined by `root`. For this, a `proof` must be provided, containing

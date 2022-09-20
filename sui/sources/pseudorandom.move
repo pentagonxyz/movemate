@@ -21,8 +21,8 @@ module movemate::pseudorandom {
 
     use movemate::bcd;
 
-    const ENOT_ROOT: u64 = 0;
-    const EHIGH_ARG_GREATER_THAN_LOW_ARG: u64 = 1;
+    const ENOT_ROOT: u64 = 0x10000;
+    const EHIGH_ARG_GREATER_THAN_LOW_ARG: u64 = 0x10001;
 
     /// Resource that wraps an integer counter.
     struct Counter has key {

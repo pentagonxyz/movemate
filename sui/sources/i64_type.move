@@ -19,10 +19,10 @@ module movemate::i64_type {
     const GREATER_THAN: u8 = 2;
 
     /// @dev When trying to convert from a u64 > MAX_I64_AS_U64 to an I64.
-    const ECONVERSION_FROM_U64_OVERFLOW: u64 = 0;
+    const ECONVERSION_FROM_U64_OVERFLOW: u64 = 0x10000;
 
     /// @dev When trying to convert from an negative I64 to a u64.
-    const ECONVERSION_TO_U64_UNDERFLOW: u64 = 1;
+    const ECONVERSION_TO_U64_UNDERFLOW: u64 = 0x10001;
 
     /// @notice Struct representing a signed 64-bit integer.
     struct I64 has copy, drop, store {

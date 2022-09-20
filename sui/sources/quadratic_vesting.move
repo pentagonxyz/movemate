@@ -9,7 +9,6 @@
 /// be immediately releasable.
 module movemate::quadratic_vesting {
     use std::option::{Self, Option};
-
     use sui::coin::{Self, Coin};
     use sui::object::{Self, ID, UID};
     use sui::transfer;
@@ -20,7 +19,7 @@ module movemate::quadratic_vesting {
     const SCALAR: u64 = 1 << 16;
 
     /// @dev When trying to clawback a wallet with the wrong wallet's capability.
-    const EWRONG_CLAWBACK_CAPABILITY: u64 = 0;
+    const EWRONG_CLAWBACK_CAPABILITY: u64 = 0x50000;
 
     struct Wallet<phantom T> has key {
         id: UID,

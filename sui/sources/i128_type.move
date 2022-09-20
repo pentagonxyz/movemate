@@ -18,10 +18,10 @@ module movemate::i128_type {
     const GREATER_THAN: u8 = 2;
 
     /// @dev When trying to convert from a u128 > MAX_I128_AS_U128 to an I128.
-    const ECONVERSION_FROM_U128_OVERFLOW: u64 = 0;
+    const ECONVERSION_FROM_U128_OVERFLOW: u64 = 0x10000;
 
     /// @dev When trying to convert from an negative I128 to a u128.
-    const ECONVERSION_TO_U128_UNDERFLOW: u64 = 1;
+    const ECONVERSION_TO_U128_UNDERFLOW: u64 = 0x10001;
 
     /// @notice Struct representing a signed 128-bit integer.
     struct I128 has copy, drop, store {

@@ -13,7 +13,7 @@ module movemate::virtual_block {
     use movemate::crit_bit::{Self, CB};
 
     /// @dev When trying to mine a block before the block time has passed.
-    const EBLOCK_TIME_NOT_PASSED: u64 = 0;
+    const EBLOCK_TIME_NOT_PASSED: u64 = 0x10000;
 
     /// @notice Struct for a virtual block with entries sorted by bids.
     struct Mempool<phantom BidAssetType, EntryType> has store {
