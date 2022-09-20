@@ -4,14 +4,13 @@
 /// @title bloom_filter
 /// @dev Probabilistic data structure for checking if an element is part of a set.
 module movemate::bloom_filter {
-    use std::errors;
     use std::hash;
     use std::vector;
 
-    use movemate::u256::{Self, U256};
+    use movemate::u256_type::{Self, U256};
 
-    const EHASH_COUNT_IS_ZERO: u64 = 0;
-    const EVECTOR_LENGTH_NOT_32: u64 = 1;
+    const EHASH_COUNT_IS_ZERO: u64 = 0x10000;
+    const EVECTOR_LENGTH_NOT_32: u64 = 0x10001;
 
     struct Filter has copy, drop, store {
         bitmap: U256,
@@ -30,15 +29,15 @@ module movemate::bloom_filter {
     /// @param _hash_count How many times to hash. You should use the same value with the one which is used for the original bitmap.
     /// @param _item Hash value of an item
     public fun add_to_bitmap(_bitmap: U256, _hash_count: u8, _item: vector<u8>): U256 {
-        assert!(_hash_count > 0, errors::invalid_argument(EHASH_COUNT_IS_ZERO));
-        assert!(vector::length(&_item) == 32, errors::invalid_argument(EVECTOR_LENGTH_NOT_32));
+        assert!(_hash_count > 0, EHASH_COUNT_IS_ZERO);
+        assert!(vector::length(&_item) == 32, EVECTOR_LENGTH_NOT_32);
         let i: u8 = 0;
         vector::push_back(&mut _item, 0);
         while (i < _hash_count) {
             *vector::borrow_mut(&mut _item, 32) = i;
             let position = vector::pop_back(&mut hash::sha2_256(_item));
-            let digest = u256::shl(u256::from_u128(1), position);
-            _bitmap = u256::or(&_bitmap, &digest);
+            let digest = u256_type::shl(u256_type::from_u128(1), position);
+            _bitmap = u256_type::or(&_bitmap, &digest);
             i = i + 1;
         };
         _bitmap
@@ -49,15 +48,15 @@ module movemate::bloom_filter {
     /// @param _hash_count How many times to hash. You should use the same value with the one which is used for the original bitmap.
     /// @param _item Hash value of an item
     public fun false_positive(_bitmap: U256, _hash_count: u8, _item: vector<u8>): bool {
-        assert!(_hash_count > 0, errors::invalid_argument(EHASH_COUNT_IS_ZERO));
-        assert!(vector::length(&_item) == 32, errors::invalid_argument(EVECTOR_LENGTH_NOT_32));
+        assert!(_hash_count > 0, EHASH_COUNT_IS_ZERO);
+        assert!(vector::length(&_item) == 32, EVECTOR_LENGTH_NOT_32);
         let i: u8 = 0;
         vector::push_back(&mut _item, 0);
         while (i < _hash_count) {
             *vector::borrow_mut(&mut _item, 32) = i;
             let position = vector::pop_back(&mut hash::sha2_256(_item));
-            let digest = u256::shl(u256::from_u128(1), position);
-            if (_bitmap != u256::or(&_bitmap, &digest)) return false;
+            let digest = u256_type::shl(u256_type::from_u128(1), position);
+            if (_bitmap != u256_type::or(&_bitmap, &digest)) return false;
             i = i + 1;
         };
         true
@@ -67,7 +66,7 @@ module movemate::bloom_filter {
     /// @param _itemNum Expected number of items to be added
     public fun new(_item_num: u64): Filter {
         Filter {
-            bitmap: u256::zero(),
+            bitmap: u256_type::zero(),
             hash_count: get_hash_count(_item_num)
         }
     }

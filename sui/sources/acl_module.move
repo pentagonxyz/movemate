@@ -3,13 +3,11 @@
 /// @title acl
 /// @notice Multi-role access control list (ACL).
 /// @dev Maps addresses to `u128`s with each bit representing the presence of (or lack of) each role.
-module movemate::acl {
-    use std::errors;
-
+module movemate::acl_module {
     use sui::vec_map::{Self, VecMap};
 
     /// @dev When attempting to add/remove a role >= 128.
-    const EROLE_NUMBER_TOO_LARGE: u64 = 0;
+    const EROLE_NUMBER_TOO_LARGE: u64 = 0x10000;
 
     /// @dev Maps addresses to `u128`s with each bit representing the presence of (or lack of) each role.
     struct ACL has store {
@@ -23,7 +21,7 @@ module movemate::acl {
 
     /// @notice Check if a member has a role in the ACL.
     public fun has_role(acl: &ACL, member: address, role: u8): bool {
-        assert!(role < 128, errors::invalid_argument(EROLE_NUMBER_TOO_LARGE));
+        assert!(role < 128, EROLE_NUMBER_TOO_LARGE);
         vec_map::contains(&acl.permissions, &member) && *vec_map::get(&acl.permissions, &member) & (1 << role) > 0
     }
 
@@ -36,7 +34,7 @@ module movemate::acl {
 
     /// @notice Add a role for a member in the ACL.
     public fun add_role(acl: &mut ACL, member: address, role: u8) {
-        assert!(role < 128, errors::invalid_argument(EROLE_NUMBER_TOO_LARGE));
+        assert!(role < 128, EROLE_NUMBER_TOO_LARGE);
         if (vec_map::contains(&acl.permissions, &member)) {
             let perms = vec_map::get_mut(&mut acl.permissions, &member);
             *perms = *perms | (1 << role);
@@ -47,7 +45,7 @@ module movemate::acl {
 
     /// @notice Revoke a role for a member in the ACL.
     public fun remove_role(acl: &mut ACL, member: address, role: u8) {
-        assert!(role < 128, errors::invalid_argument(EROLE_NUMBER_TOO_LARGE));
+        assert!(role < 128, EROLE_NUMBER_TOO_LARGE);
         if (vec_map::contains(&acl.permissions, &member)) {
             let perms = vec_map::get_mut(&mut acl.permissions, &member);
             *perms = *perms - (1 << role);

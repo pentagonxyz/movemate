@@ -8,19 +8,18 @@
 /// Consequently, if the vesting has already started, any amount of tokens sent to this contract will (at least partly)
 /// be immediately releasable.
 module movemate::linear_vesting {
-    use std::errors;
     use std::option::{Self, Option};
 
     use sui::coin::{Self, Coin};
-    use sui::object::{Self, ID, Info};
+    use sui::object::{Self, ID, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
     /// @dev When trying to clawback a wallet with the wrong wallet's capability.
-    const EWRONG_CLAWBACK_CAPABILITY: u64 = 0;
+    const EWRONG_CLAWBACK_CAPABILITY: u64 = 0x50000;
 
     struct Wallet<phantom T> has key {
-        info: Info,
+        id: UID,
         beneficiary: address,
         coin: Coin<T>,
         released: u64,
@@ -29,35 +28,35 @@ module movemate::linear_vesting {
     }
 
     struct ClawbackCapability has key, store {
-        info: Info,
+        id: UID,
         wallet_id: ID
     }
 
     /// @dev Set the beneficiary, start timestamp and vesting duration of the vesting wallet.
     public entry fun init_wallet<T>(beneficiary: address, start: u64, duration: u64, clawbacker: Option<address>, ctx: &mut TxContext) {
         let wallet = Wallet<T> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             beneficiary,
             coin: coin::zero<T>(ctx),
             released: 0,
             start,
             duration
         };
-        if (option::is_some(&clawbacker)) transfer::transfer(ClawbackCapability { info: object::new(ctx), wallet_id: *object::id(&wallet) }, option::destroy_some(clawbacker));
+        if (option::is_some(&clawbacker)) transfer::transfer(ClawbackCapability { id: object::new(ctx), wallet_id: object::id(&wallet) }, option::destroy_some(clawbacker));
         transfer::share_object(wallet);
     }
 
     /// @dev Set the beneficiary, start timestamp and vesting duration of the vesting wallet.
     public fun init_wallet_return_clawback<T>(beneficiary: address, start: u64, duration: u64, ctx: &mut TxContext): ClawbackCapability {
         let wallet = Wallet<T> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             beneficiary,
             coin: coin::zero<T>(ctx),
             released: 0,
             start,
             duration
         };
-        let clawback_cap = ClawbackCapability { info: object::new(ctx), wallet_id: *object::id(&wallet) };
+        let clawback_cap = ClawbackCapability { id: object::new(ctx), wallet_id: object::id(&wallet) };
         transfer::share_object(wallet);
         clawback_cap
     }
@@ -85,11 +84,11 @@ module movemate::linear_vesting {
     public fun clawback<T>(wallet: &mut Wallet<T>, clawback_cap: ClawbackCapability, ctx: &mut TxContext): Coin<T> {
         // Check and delete clawback capability
         let ClawbackCapability {
-            info: info,
+            id: id,
             wallet_id: wallet_id
         } = clawback_cap;
-        assert!(wallet_id == *object::id(wallet), errors::requires_capability(EWRONG_CLAWBACK_CAPABILITY));
-        object::delete(info);
+        assert!(wallet_id == object::id(wallet), EWRONG_CLAWBACK_CAPABILITY);
+        object::delete(id);
 
         // Release amount
         let releasable = vested_amount(wallet.start, wallet.duration, coin::value(&wallet.coin), wallet.released, tx_context::epoch(ctx)) - wallet.released;
@@ -104,16 +103,16 @@ module movemate::linear_vesting {
 
     /// @notice Claws back coins to the `recipient` if enabled.
     public entry fun clawback_to<T>(wallet: &mut Wallet<T>, clawback_cap: ClawbackCapability, recipient: address, ctx: &mut TxContext) {
-        coin::transfer(clawback(wallet, clawback_cap, ctx), recipient)
+        transfer::transfer(clawback(wallet, clawback_cap, ctx), recipient)
     }
 
     /// @dev Destroys a clawback capability.
     public fun destroy_clawback_capability(clawback_cap: ClawbackCapability) {
         let ClawbackCapability {
-            info: info,
+            id: id,
             wallet_id: _
         } = clawback_cap;
-        object::delete(info);
+        object::delete(id);
     }
 
     /// @dev Returns (1) the amount that has vested at the current time and the (2) portion of that amount that has not yet been released.
