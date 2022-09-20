@@ -1,17 +1,17 @@
 /// @title box
 /// @notice Generalized box for transferring objects that only have `store` but not `key`.
 module movemate::box {
-    use sui::object::{Self, Info};
+    use sui::object::{Self, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
     struct Box<T: store> has key, store {
-        info: Info,
+        id: UID,
         obj: T
     }
 
     struct PrivateBox<T: store> has key, store {
-        info: Info,
+        id: UID,
         obj: T,
         sender: address
     }
@@ -20,7 +20,7 @@ module movemate::box {
     /// @param recipient The destination address of the box object.
     public entry fun box<T: store>(recipient: address, obj_in: T, ctx: &mut TxContext) {
         let box = Box<T> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             obj: obj_in
         };
         transfer::transfer(box, recipient);
@@ -29,10 +29,10 @@ module movemate::box {
     /// @dev Unboxes the object inside the box.
     public fun unbox<T: store>(box: Box<T>): T {
         let Box {
-            info: info,
+            id: id,
             obj: obj,
         } = box;
-        object::delete(info);
+        object::delete(id);
         obj
     }
 
@@ -40,7 +40,7 @@ module movemate::box {
     /// @param recipient The destination address of the box object.
     public entry fun box_private<T: store>(recipient: address, obj_in: T, ctx: &mut TxContext) {
         let box = PrivateBox<T> {
-            info: object::new(ctx),
+            id: object::new(ctx),
             obj: obj_in,
             sender: tx_context::sender(ctx)
         };
@@ -50,11 +50,11 @@ module movemate::box {
     /// @dev Unboxes the object inside the private box. (Private box = stores the sender in the sender property.)
     public fun unbox_private<T: store>(box: PrivateBox<T>): T {
         let PrivateBox {
-            info: info,
+            id: id,
             obj: obj,
             sender: _
         } = box;
-        object::delete(info);
+        object::delete(id);
         obj
     }
 }

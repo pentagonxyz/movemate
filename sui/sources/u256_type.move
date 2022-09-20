@@ -41,22 +41,22 @@
 /// * Division:
 ///     * Could be improved with div_mod_small (current version probably would took a lot of resources for small numbers).
 ///     * Also could be improved with Knuth, TAOCP, Volume 2, section 4.3.1, Algorithm D (see link to Parity above).
-module movemate::u256 {
+module movemate::u256_type {
     use std::bcs;
     use std::vector;
 
     // Errors.
     /// When can't cast `U256` to `u128` (e.g. number too large).
-    const ECAST_OVERFLOW: u64 = 0;
+    const ECAST_OVERFLOW: u64 = 0x10000;
 
     /// When trying to get or put word into U256 but it's out of index.
-    const EWORDS_OVERFLOW: u64 = 1;
+    const EWORDS_OVERFLOW: u64 = 0x10001;
 
     /// When math overflows.
-    const EOVERFLOW: u64 = 2;
+    const EOVERFLOW: u64 = 0x10002;
 
     /// When attempted to divide by zero.
-    const EDIV_BY_ZERO: u64 = 3;
+    const EDIV_BY_ZERO: u64 = 0x10003;
 
     /// When trying to call `from_bytes` on a vector of length != 32.
     const EVECTOR_LENGTH_NOT_32_BYTES: u64 = 4;
