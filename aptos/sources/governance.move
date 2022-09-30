@@ -392,7 +392,7 @@ module movemate::governance {
         vector::append(&mut seed, b"::governance::FakeMoney>");
         let address_bytes = bcs::to_bytes(source);
         vector::append(&mut address_bytes, seed);
-        account::create_address_for_test(std::hash::sha3_256(address_bytes))
+        aptos_std::from_bcs::to_address(std::hash::sha3_256(address_bytes))
     }
 
     #[test(forum_creator = @0x1000, voter_a = @0x1001, voter_b = @0x1002, voter_c = @0x1003, voter_d = @0x1004, coin_creator = @movemate, aptos_framework = @aptos_framework)]
