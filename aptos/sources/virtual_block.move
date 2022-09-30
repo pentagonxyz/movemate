@@ -134,7 +134,7 @@ module movemate::virtual_block {
         // fast forward and mine block
         fast_forward_microseconds(3000000);
         let miner_address = std::signer::address_of(&miner);
-        coin::register_for_test<FakeMoney>(&miner);
+        coin::register<FakeMoney>(&miner);
         let cb = mine_entries(&mut mempool, miner_address);
         assert!(coin::balance<FakeMoney>(miner_address) == (1234000000 + 5678000000) / 4, 0);
 
@@ -192,7 +192,7 @@ module movemate::virtual_block {
         // fast forward and try to mine
         fast_forward_microseconds(3000000);
         let miner_address = std::signer::address_of(&miner);
-        coin::register_for_test<FakeMoney>(&miner);
+        coin::register<FakeMoney>(&miner);
         let cb = mine_entries(&mut mempool, miner_address);
 
         // destroy cb tree

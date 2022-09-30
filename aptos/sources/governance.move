@@ -409,10 +409,10 @@ module movemate::governance {
             true
         );
 
-        coin::register_for_test<FakeMoney>(&voter_a);
-        coin::register_for_test<FakeMoney>(&voter_b);
-        coin::register_for_test<FakeMoney>(&voter_c);
-        coin::register_for_test<FakeMoney>(&voter_d);
+        coin::register<FakeMoney>(&voter_a);
+        coin::register<FakeMoney>(&voter_b);
+        coin::register<FakeMoney>(&voter_c);
+        coin::register<FakeMoney>(&voter_d);
         let voter_a_address = signer::address_of(&voter_a);
         let voter_b_address = signer::address_of(&voter_b);
         let voter_c_address = signer::address_of(&voter_c);
@@ -498,9 +498,9 @@ module movemate::governance {
             true
         );
 
-        coin::register_for_test<FakeMoney>(&voter_a);
-        coin::register_for_test<FakeMoney>(&voter_b);
-        coin::register_for_test<FakeMoney>(&voter_c);
+        coin::register<FakeMoney>(&voter_a);
+        coin::register<FakeMoney>(&voter_b);
+        coin::register<FakeMoney>(&voter_c);
         let voter_a_address = signer::address_of(&voter_a);
         let voter_b_address = signer::address_of(&voter_b);
         let voter_c_address = signer::address_of(&voter_c);
@@ -574,8 +574,8 @@ module movemate::governance {
             true
         );
 
-        coin::register_for_test<FakeMoney>(&voter_a);
-        coin::register_for_test<FakeMoney>(&voter_b);
+        coin::register<FakeMoney>(&voter_a);
+        coin::register<FakeMoney>(&voter_b);
         let voter_a_address = signer::address_of(&voter_a);
         let voter_b_address = signer::address_of(&voter_b);
         coin::deposit(voter_a_address, coin::mint<FakeMoney>(1700000000, &mint_cap));
@@ -644,8 +644,8 @@ module movemate::governance {
             true
         );
 
-        coin::register_for_test<FakeMoney>(&voter_a);
-        coin::register_for_test<FakeMoney>(&voter_b);
+        coin::register<FakeMoney>(&voter_a);
+        coin::register<FakeMoney>(&voter_b);
         let voter_a_address = signer::address_of(&voter_a);
         let voter_b_address = signer::address_of(&voter_b);
         coin::deposit(voter_a_address, coin::mint<FakeMoney>(1800000000, &mint_cap));
@@ -717,7 +717,7 @@ module movemate::governance {
             true
         );
 
-        coin::register_for_test<FakeMoney>(&voter_a);
+        coin::register<FakeMoney>(&voter_a);
         let voter_a_address = signer::address_of(&voter_a);
         coin::deposit(voter_a_address, coin::mint<FakeMoney>(800000000, &mint_cap));
 

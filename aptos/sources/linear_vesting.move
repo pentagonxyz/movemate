@@ -239,13 +239,13 @@ module movemate::linear_vesting {
 
         // fast forward and release
         fast_forward_seconds(3600);
-        coin::register_for_test<FakeMoney>(&beneficiary);
+        coin::register<FakeMoney>(&beneficiary);
         release<FakeMoney>(admin_address, beneficiary_address, 0);
         assert!(coin::balance<FakeMoney>(beneficiary_address) == 51440328, 0);
 
         // fast forward and claw back
         fast_forward_seconds(7200);
-        coin::register_for_test<FakeMoney>(&clawbacker);
+        coin::register<FakeMoney>(&clawbacker);
         clawback<FakeMoney>(&clawbacker, admin_address, beneficiary_address, 0);
         assert!(coin::balance<FakeMoney>(beneficiary_address) == 154320986, 1);
         assert!(coin::balance<FakeMoney>(clawbacker_address) == 1234567890 - 154320986, 2);
@@ -300,8 +300,8 @@ module movemate::linear_vesting {
 
         // fast forward and claw back (should fail)
         fast_forward_seconds(3600);
-        coin::register_for_test<FakeMoney>(&beneficiary);
-        coin::register_for_test<FakeMoney>(&clawbacker);
+        coin::register<FakeMoney>(&beneficiary);
+        coin::register<FakeMoney>(&clawbacker);
         clawback<FakeMoney>(&clawbacker, admin_address, beneficiary_address, 0);
 
         // clean up: we can't drop mint/burn caps so we store them
