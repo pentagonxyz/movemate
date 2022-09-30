@@ -13,7 +13,6 @@ module movemate::linear_vesting {
     use std::signer;
     use std::vector;
 
-    use aptos_std::iterable_table::{Self, IterableTable};
     use aptos_std::table::{Self, Table};
 
     use aptos_framework::coin::{Self, Coin};
@@ -29,7 +28,7 @@ module movemate::linear_vesting {
     }
 
     struct WalletInfoCollection has key {
-        wallets: IterableTable<address, vector<WalletInfo>>
+        wallets: Table<address, vector<WalletInfo>>
     }
 
     struct CoinStore<phantom T> has store {
@@ -38,13 +37,13 @@ module movemate::linear_vesting {
     }
 
     struct CoinStoreCollection<phantom T> has key {
-        wallets: IterableTable<address, Table<u64, CoinStore<T>>>
+        wallets: Table<address, Table<u64, CoinStore<T>>>
     }
 
     /// @dev Enables an asset on the admin's wallet collecton.
     public entry fun init_asset<T>(admin: &signer) {
         move_to(admin, CoinStoreCollection<T> {
-            wallets: iterable_table::new()
+            wallets: table::new()
         });
     }
 
@@ -55,14 +54,14 @@ module movemate::linear_vesting {
 
         if (!exists<WalletInfoCollection>(admin_address)) {
             move_to(admin, WalletInfoCollection {
-                wallets: iterable_table::new()
+                wallets: table::new()
             });
         };
 
         // Add beneficiary to collection
         let wallet_infos = &mut borrow_global_mut<WalletInfoCollection>(admin_address).wallets;
-        if (!iterable_table::contains(wallet_infos, beneficiary)) iterable_table::add(wallet_infos, beneficiary, vector::empty());
-        let collection = iterable_table::borrow_mut(wallet_infos, beneficiary);
+        if (!table::contains(wallet_infos, beneficiary)) table::add(wallet_infos, beneficiary, vector::empty());
+        let collection = table::borrow_mut(wallet_infos, beneficiary);
 
         // Add wallet to array
         vector::push_back(collection, WalletInfo {
@@ -75,8 +74,8 @@ module movemate::linear_vesting {
     /// @dev Deposits `coin_in` to a wallet.
     public fun deposit<T>(admin: address, beneficiary: address, index: u64, coin_in: Coin<T>) acquires CoinStoreCollection {
         let coin_stores = &mut borrow_global_mut<CoinStoreCollection<T>>(admin).wallets;
-        if (!iterable_table::contains(coin_stores, beneficiary)) iterable_table::add(coin_stores, beneficiary, table::new());
-        let collection = iterable_table::borrow_mut(coin_stores, beneficiary);
+        if (!table::contains(coin_stores, beneficiary)) table::add(coin_stores, beneficiary, table::new());
+        let collection = table::borrow_mut(coin_stores, beneficiary);
         if (table::contains(collection, index)) {
             let coin_store = table::borrow_mut(collection, index);
             coin::merge(&mut coin_store.coin, coin_in);
@@ -93,7 +92,7 @@ module movemate::linear_vesting {
     /// @notice Returns the vesting wallet details.
     public fun wallet_info(admin: address, beneficiary: address, index: u64): (u64, u64, Option<address>) acquires WalletInfoCollection {
         let wallet_infos = &mut borrow_global_mut<WalletInfoCollection>(admin).wallets;
-        let collection = iterable_table::borrow(wallet_infos, beneficiary);
+        let collection = table::borrow(wallet_infos, beneficiary);
         let wallet_info = vector::borrow(collection, index);
         (wallet_info.start, wallet_info.duration, wallet_info.clawbacker)
     }
@@ -101,7 +100,7 @@ module movemate::linear_vesting {
     /// @notice Returns the vesting wallet asset balance and amount released.
     public fun wallet_asset<T>(admin: address, beneficiary: address, index: u64): (u64, u64) acquires CoinStoreCollection {
         let coin_stores = &borrow_global<CoinStoreCollection<T>>(admin).wallets;
-        let collection = iterable_table::borrow(coin_stores, beneficiary);
+        let collection = table::borrow(coin_stores, beneficiary);
         let coin_store = table::borrow(collection, index);
         (coin::value(&coin_store.coin), coin_store.released)
     }
@@ -110,12 +109,12 @@ module movemate::linear_vesting {
     public entry fun release<T>(admin: address, beneficiary: address, index: u64) acquires WalletInfoCollection, CoinStoreCollection {
         // Get wallet info
         let wallet_infos = &borrow_global<WalletInfoCollection>(admin).wallets;
-        let collection = iterable_table::borrow(wallet_infos, beneficiary);
+        let collection = table::borrow(wallet_infos, beneficiary);
         let wallet_info = vector::borrow(collection, index);
 
         // Get coin store
         let coin_stores = &mut borrow_global_mut<CoinStoreCollection<T>>(admin).wallets;
-        let collection = iterable_table::borrow_mut(coin_stores, beneficiary);
+        let collection = table::borrow_mut(coin_stores, beneficiary);
         let coin_store = table::borrow_mut(collection, index);
 
         // Release amount
@@ -132,12 +131,12 @@ module movemate::linear_vesting {
 
         // Get wallet info
         let wallet_infos = &borrow_global<WalletInfoCollection>(admin).wallets;
-        let collection = iterable_table::borrow(wallet_infos, beneficiary);
+        let collection = table::borrow(wallet_infos, beneficiary);
         let wallet_info = vector::borrow(collection, index);
 
         // Get coin store
         let coin_stores = &mut borrow_global_mut<CoinStoreCollection<T>>(admin).wallets;
-        let collection = iterable_table::borrow_mut(coin_stores, beneficiary);
+        let collection = table::borrow_mut(coin_stores, beneficiary);
         let coin_store = table::borrow_mut(collection, index);
 
         // Release amount
@@ -161,7 +160,7 @@ module movemate::linear_vesting {
 
         // Get wallet info
         let wallet_infos = &mut borrow_global_mut<WalletInfoCollection>(admin).wallets;
-        let collection = iterable_table::borrow_mut(wallet_infos, beneficiary);
+        let collection = table::borrow_mut(wallet_infos, beneficiary);
         let wallet_info = vector::borrow_mut(collection, index);
 
         // Validate clawback
@@ -175,12 +174,12 @@ module movemate::linear_vesting {
     public fun vesting_status<T>(admin: address, beneficiary: address, index: u64): (u64, u64) acquires WalletInfoCollection, CoinStoreCollection {
         // Get wallet info
         let wallet_infos = &borrow_global<WalletInfoCollection>(admin).wallets;
-        let collection = iterable_table::borrow(wallet_infos, beneficiary);
+        let collection = table::borrow(wallet_infos, beneficiary);
         let wallet_info = vector::borrow(collection, index);
 
         // Get coin store
         let coin_stores = &borrow_global<CoinStoreCollection<T>>(admin).wallets;
-        let collection = iterable_table::borrow(coin_stores, beneficiary);
+        let collection = table::borrow(coin_stores, beneficiary);
         let coin_store = table::borrow(collection, index);
 
         // Return vested amount
