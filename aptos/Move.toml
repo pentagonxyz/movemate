@@ -12,14 +12,14 @@ movemate = "0x3953993C1D8DFB8BAC2DA2F4DBA6521BA3E705299760FBEE6695E38BCE712A82"
 [dependencies.MoveStdlib]
 git = "https://github.com/aptos-labs/aptos-core.git"
 subdir = "aptos-move/framework/move-stdlib"
-rev = "aptos-framework-v0.3.0"
+rev = "0bea75d7c19f356df38f0f0a4e17fccea0f37cea"
 
 [dependencies.AptosStdlib]
 git = "https://github.com/aptos-labs/aptos-core.git"
 subdir = "aptos-move/framework/aptos-stdlib"
-rev = "aptos-framework-v0.3.0"
+rev = "0bea75d7c19f356df38f0f0a4e17fccea0f37cea"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
 subdir = "aptos-move/framework/aptos-framework"
-rev = "aptos-framework-v0.3.0"
+rev = "0bea75d7c19f356df38f0f0a4e17fccea0f37cea"
