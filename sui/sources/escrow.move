@@ -46,20 +46,22 @@ module movemate::escrow {
 
     #[test_only]
     struct FakeObject has key, store {
-        info: ID,
+        info: UID,
         data: u64
     }
 
     #[test]
     public fun test_end_to_end() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
         escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
-        let escrow = test_scenario::take_owned<Escrow<FakeObject>>(scenario);
+        test_scenario::next_tx(scenario, TEST_SENDER_ADDR);
+        let escrow = test_scenario::take_from_sender<Escrow<FakeObject>>(scenario);
         transfer(escrow);
-        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
-        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        test_scenario::next_tx(scenario, TEST_RECIPIENT_ADDR);
+        let obj = test_scenario::take_from_sender<FakeObject>(scenario);
         assert!(obj.data == 1234, 0);
-        test_scenario::return_owned(scenario, obj);
+        test_scenario::return_to_sender(scenario, obj);
+        test_scenario::end(scenario_wrapper);
     }
 }

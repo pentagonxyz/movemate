@@ -10,6 +10,7 @@
 module movemate::linear_vesting {
     use std::option::{Self, Option};
 
+    use sui::pay;
     use sui::coin::{Self, Coin};
     use sui::object::{Self, ID, UID};
     use sui::transfer;
@@ -76,7 +77,7 @@ module movemate::linear_vesting {
         // Release amount
         let releasable = vested_amount(wallet.start, wallet.duration, coin::value(&wallet.coin), wallet.released, tx_context::epoch(ctx)) - wallet.released;
         *&mut wallet.released = *&wallet.released + releasable;
-        coin::split_and_transfer<T>(&mut wallet.coin, releasable, wallet.beneficiary, ctx);
+        pay::split_and_transfer<T>(&mut wallet.coin, releasable, wallet.beneficiary, ctx);
     }
 
     /// @notice Claws back coins if enabled.
@@ -93,7 +94,7 @@ module movemate::linear_vesting {
         // Release amount
         let releasable = vested_amount(wallet.start, wallet.duration, coin::value(&wallet.coin), wallet.released, tx_context::epoch(ctx)) - wallet.released;
         *&mut wallet.released = *&wallet.released + releasable;
-        coin::split_and_transfer<T>(&mut wallet.coin, releasable, wallet.beneficiary, ctx);
+        pay::split_and_transfer<T>(&mut wallet.coin, releasable, wallet.beneficiary, ctx);
 
         // Execute clawback
         let coin_out = &mut wallet.coin;
@@ -148,73 +149,77 @@ module movemate::linear_vesting {
     #[test]
     public entry fun test_end_to_end() {
         // Test scenario
-        let scenario = &mut test_scenario::begin(&TEST_ADMIN_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_ADMIN_ADDR);
+        let scenario = &mut scenario_wrapper;
 
         // Mint fake coin
         let coin_in = coin::mint_for_testing<FakeMoney>(1234567890, test_scenario::ctx(scenario));
 
         // init wallet and asset
         init_wallet<FakeMoney>(TEST_BENEFICIARY_ADDR, tx_context::epoch(test_scenario::ctx(scenario)), 7, option::some(TEST_ADMIN_ADDR), test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
+        test_scenario::next_tx(scenario, TEST_ADMIN_ADDR);
         let wallet_wrapper = test_scenario::take_shared<Wallet<FakeMoney>>(scenario);
-        let wallet = test_scenario::borrow_mut(&mut wallet_wrapper);
+        let wallet = &mut wallet_wrapper;
         deposit<FakeMoney>(wallet, coin_in);
 
         // fast forward and release
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario, TEST_ADMIN_ADDR);
+        test_scenario::next_epoch(scenario, TEST_ADMIN_ADDR);
         release<FakeMoney>(wallet, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, wallet_wrapper);
+        test_scenario::return_shared(wallet_wrapper);
 
         // Ensure release worked as planned
-        test_scenario::next_tx(scenario, &TEST_BENEFICIARY_ADDR);
-        let beneficiary_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
+        test_scenario::next_tx(scenario, TEST_BENEFICIARY_ADDR);
+        let beneficiary_coin = test_scenario::take_from_sender<Coin<FakeMoney>>(scenario);
         assert!(coin::value<FakeMoney>(&beneficiary_coin) == 352733682, 0);
-        test_scenario::return_owned(scenario, beneficiary_coin);
+        test_scenario::return_to_sender(scenario, beneficiary_coin);
 
         // fast forward and claw back vesting
-        test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
+        test_scenario::next_tx(scenario, TEST_ADMIN_ADDR);
+        test_scenario::next_epoch(scenario, TEST_ADMIN_ADDR);
+        test_scenario::next_epoch(scenario, TEST_ADMIN_ADDR);
+        test_scenario::next_epoch(scenario, TEST_ADMIN_ADDR);
         let wallet_wrapper = test_scenario::take_shared<Wallet<FakeMoney>>(scenario);
-        let wallet = test_scenario::borrow_mut(&mut wallet_wrapper);
-        let clawback_cap = test_scenario::take_owned<ClawbackCapability>(scenario);
+        let wallet = &mut wallet_wrapper;
+        let clawback_cap = test_scenario::take_from_sender<ClawbackCapability>(scenario);
         clawback_to<FakeMoney>(wallet, clawback_cap, TEST_ADMIN_ADDR, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, wallet_wrapper);
+        test_scenario::return_shared(wallet_wrapper);
 
         // Ensure clawback worked as planned
-        test_scenario::next_tx(scenario, &TEST_BENEFICIARY_ADDR);
-        let beneficiary_coin = test_scenario::take_last_created_owned<Coin<FakeMoney>>(scenario);
+        test_scenario::next_tx(scenario, TEST_BENEFICIARY_ADDR);
+        let beneficiary_coin = test_scenario::take_from_sender<Coin<FakeMoney>>(scenario);
         assert!(coin::value<FakeMoney>(&beneficiary_coin) == 881834207 - 352733682, 1);
-        test_scenario::return_owned(scenario, beneficiary_coin);
-        test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
-        let admin_coin = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
+        test_scenario::return_to_sender(scenario, beneficiary_coin);
+        test_scenario::next_tx(scenario, TEST_ADMIN_ADDR);
+        let admin_coin = test_scenario::take_from_sender<Coin<FakeMoney>>(scenario);
         assert!(coin::value<FakeMoney>(&admin_coin) == 1234567890 - 881834207, 2);
-        test_scenario::return_owned(scenario, admin_coin);
+        test_scenario::return_to_sender(scenario, admin_coin);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     public entry fun test_no_clawback() {
         // Test scenario
-        let scenario = &mut test_scenario::begin(&TEST_ADMIN_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_ADMIN_ADDR);
+        let scenario = &mut scenario_wrapper;
 
         // Mint fake coin
         let coin_in = coin::mint_for_testing<FakeMoney>(1234567890, test_scenario::ctx(scenario));
 
         // init wallet and asset
         init_wallet<FakeMoney>(TEST_BENEFICIARY_ADDR, tx_context::epoch(test_scenario::ctx(scenario)), 7, option::none(), test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_ADMIN_ADDR);
+        test_scenario::next_tx(scenario, TEST_ADMIN_ADDR);
         let wallet_wrapper = test_scenario::take_shared<Wallet<FakeMoney>>(scenario);
-        let wallet = test_scenario::borrow_mut(&mut wallet_wrapper);
+        let wallet = &mut wallet_wrapper;
         deposit<FakeMoney>(wallet, coin_in);
 
         // fast forward and claw back (should fail)
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
-        assert!(!test_scenario::can_take_owned<ClawbackCapability>(scenario), 0);
+        test_scenario::next_epoch(scenario, TEST_ADMIN_ADDR);
+        test_scenario::next_epoch(scenario, TEST_ADMIN_ADDR);
+        assert!(!test_scenario::has_most_recent_for_sender<ClawbackCapability>(scenario), 0);
 
         // clean up: return shared wallet object
-        test_scenario::return_shared(scenario, wallet_wrapper);
+        test_scenario::return_shared(wallet_wrapper);
+        test_scenario::end(scenario_wrapper);
     }
 }

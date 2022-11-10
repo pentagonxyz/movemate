@@ -7,6 +7,7 @@
 module movemate::virtual_block {
     use std::vector;
 
+    use sui::pay;
     use sui::coin::{Self, Coin};
     use sui::tx_context::{Self, TxContext};
 
@@ -64,7 +65,7 @@ module movemate::virtual_block {
 
         // Withdraw miner_fee_rate / 2**16 to the miner
         let miner_fee = coin::value(&mempool.current_block_bids) * mempool.miner_fee_rate / (1 << 16);
-        coin::split_and_transfer(&mut mempool.current_block_bids, miner_fee, miner, ctx);
+        pay::split_and_transfer(&mut mempool.current_block_bids, miner_fee, miner, ctx);
 
         // Send the rest to the mempool admin
         let remaining = coin::value(&mempool.current_block_bids);
@@ -103,7 +104,8 @@ module movemate::virtual_block {
     #[test]
     public entry fun test_end_to_end() {
         // Test scenario
-        let scenario = &mut test_scenario::begin(&TEST_MINER_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_MINER_ADDR);
+        let scenario = &mut scenario_wrapper;
 
         // Mint fake coin
         let coin_in_a = coin::mint_for_testing<FakeMoney>(1234000000, test_scenario::ctx(scenario));
@@ -116,20 +118,20 @@ module movemate::virtual_block {
         add_entry(&mut mempool, FakeEntry { stuff: 1234 }, coin_in_a);
 
         // fast forward and add entry
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
         add_entry(&mut mempool, FakeEntry { stuff: 5678 }, coin_in_b);
 
         // fast forward and mine block
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
         let cb = mine_entries(&mut mempool, TEST_MINER_ADDR, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_MINER_ADDR);
-        let coin_miner = test_scenario::take_owned<Coin<FakeMoney>>(scenario);
+        test_scenario::next_tx(scenario, TEST_MINER_ADDR);
+        let coin_miner = test_scenario::take_from_sender<Coin<FakeMoney>>(scenario);
         assert!(coin::value(&coin_miner) == (1234000000 + 5678000000) / 4, 0);
-        test_scenario::return_owned(scenario, coin_miner);
+        test_scenario::return_to_sender(scenario, coin_miner);
 
         // Loop through highest to lowest bid
         let last_bid = 0xFFFFFFFFFFFFFFFF;
@@ -153,13 +155,15 @@ module movemate::virtual_block {
         sui::transfer::transfer(TempMempool {
             mempool,
         }, TEST_MINER_ADDR);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     #[expected_failure(abort_code = 0x001)]
     public entry fun test_mine_before_time() {
         // Test scenario
-        let scenario = &mut test_scenario::begin(&TEST_MINER_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_MINER_ADDR);
+        let scenario = &mut scenario_wrapper;
 
         // Mint fake coin
         let coin_in = coin::mint_for_testing<FakeMoney>(1234000000, test_scenario::ctx(scenario));
@@ -171,9 +175,9 @@ module movemate::virtual_block {
         add_entry(&mut mempool, FakeEntry { stuff: 1234 }, coin_in);
 
         // fast forward and try to mine
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
-        test_scenario::next_epoch(scenario);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
+        test_scenario::next_epoch(scenario, TEST_MINER_ADDR);
         let cb = mine_entries(&mut mempool, TEST_MINER_ADDR, test_scenario::ctx(scenario));
 
         // destroy cb tree
@@ -184,5 +188,6 @@ module movemate::virtual_block {
         sui::transfer::transfer(TempMempool {
             mempool,
         }, TEST_MINER_ADDR);
+        test_scenario::end(scenario_wrapper);
     }
 }

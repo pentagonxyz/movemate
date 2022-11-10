@@ -83,109 +83,117 @@ module movemate::escrow_shared {
 
     #[test]
     public fun test_transfer() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { id: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, TEST_SENDER_ADDR);
         let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
-        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
-        transfer(escrow, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, escrow_wrapper);
-        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
-        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        transfer(&mut escrow_wrapper, test_scenario::ctx(scenario));
+        test_scenario::return_shared(escrow_wrapper);
+        test_scenario::next_tx(scenario, TEST_RECIPIENT_ADDR);
+        let obj = test_scenario::take_from_sender<FakeObject>(scenario);
         assert!(obj.data == 1234, 0);
-        test_scenario::return_owned(scenario, obj);
+        test_scenario::return_to_sender(scenario, obj);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     public fun test_refund() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { id: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, TEST_RECIPIENT_ADDR);
         let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
-        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
-        refund(escrow, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, escrow_wrapper);
-        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
-        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        refund(&mut escrow_wrapper, test_scenario::ctx(scenario));
+        test_scenario::return_shared(escrow_wrapper);
+        test_scenario::next_tx(scenario, TEST_SENDER_ADDR);
+        let obj = test_scenario::take_from_sender<FakeObject>(scenario);
         assert!(obj.data == 1234, 0);
-        test_scenario::return_owned(scenario, obj);
+        test_scenario::return_to_sender(scenario, obj);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     public fun test_transfer_arbitrator() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_ARBITRATOR_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { id: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, TEST_ARBITRATOR_ADDR);
         let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
-        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
-        transfer_arbitrated(escrow, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, escrow_wrapper);
-        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
-        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        transfer_arbitrated(&mut escrow_wrapper, test_scenario::ctx(scenario));
+        test_scenario::return_shared(escrow_wrapper);
+        test_scenario::next_tx(scenario, TEST_RECIPIENT_ADDR);
+        let obj = test_scenario::take_from_sender<FakeObject>(scenario);
         assert!(obj.data == 1234, 0);
-        test_scenario::return_owned(scenario, obj);
+        test_scenario::return_to_sender(scenario, obj);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     public fun test_refund_arbitrator() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_ARBITRATOR_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { id: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, TEST_ARBITRATOR_ADDR);
         let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
-        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
-        refund_arbitrated(escrow, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, escrow_wrapper);
-        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
-        let obj = test_scenario::take_owned<FakeObject>(scenario);
+        refund_arbitrated(&mut escrow_wrapper, test_scenario::ctx(scenario));
+        test_scenario::return_shared(escrow_wrapper);
+        test_scenario::next_tx(scenario, TEST_SENDER_ADDR);
+        let obj = test_scenario::take_from_sender<FakeObject>(scenario);
         assert!(obj.data == 1234, 0);
-        test_scenario::return_owned(scenario, obj);
+        test_scenario::return_to_sender(scenario, obj);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     #[expected_failure(abort_code = 0x002)]
     public fun test_transfer_unauthorized() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { id: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, TEST_RECIPIENT_ADDR);
         let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
-        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
-        transfer(escrow, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, escrow_wrapper);
+        transfer(&mut escrow_wrapper, test_scenario::ctx(scenario));
+        test_scenario::return_shared(escrow_wrapper);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     #[expected_failure(abort_code = 0x102)]
     public fun test_refund_unauthorized() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { id: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, TEST_SENDER_ADDR);
         let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
-        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
-        refund(escrow, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, escrow_wrapper);
+        refund(&mut escrow_wrapper, test_scenario::ctx(scenario));
+        test_scenario::return_shared(escrow_wrapper);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     #[expected_failure(abort_code = 0x202)]
     public fun test_transfer_arbitrator_unauthorized() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_RECIPIENT_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { id: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, TEST_RECIPIENT_ADDR);
         let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
-        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
-        transfer_arbitrated(escrow, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, escrow_wrapper);
+        transfer_arbitrated(&mut escrow_wrapper, test_scenario::ctx(scenario));
+        test_scenario::return_shared(escrow_wrapper);
+        test_scenario::end(scenario_wrapper);
     }
 
     #[test]
     #[expected_failure(abort_code = 0x202)]
     public fun test_refund_arbitrator_unauthorized() {
-        let scenario = &mut test_scenario::begin(&TEST_SENDER_ADDR);
-        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { info: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
-        test_scenario::next_tx(scenario, &TEST_SENDER_ADDR);
+        let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
+        let scenario = &mut scenario_wrapper;
+        escrow(TEST_SENDER_ADDR, TEST_RECIPIENT_ADDR, option::some(TEST_ARBITRATOR_ADDR), FakeObject { id: object::new(test_scenario::ctx(scenario)), data: 1234 }, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, TEST_SENDER_ADDR);
         let escrow_wrapper = test_scenario::take_shared<Escrow<FakeObject>>(scenario);
-        let escrow = test_scenario::borrow_mut(&mut escrow_wrapper);
-        refund_arbitrated(escrow, test_scenario::ctx(scenario));
-        test_scenario::return_shared(scenario, escrow_wrapper);
+        refund_arbitrated(&mut escrow_wrapper, test_scenario::ctx(scenario));
+        test_scenario::return_shared(escrow_wrapper);
+        test_scenario::end(scenario_wrapper);
     }
 }
