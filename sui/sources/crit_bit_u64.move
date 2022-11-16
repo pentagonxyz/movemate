@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copied from: https://github.com/econia-labs/econia/blob/main/src/move/econia/sources/CritBit.move
 
 /// # Module-level documentation sections
 ///
@@ -1805,10 +1806,8 @@ module movemate::crit_bit_u64 {
     /// and `c`. Useful for line-wrapping long byte strings
     public fun u_long(
         a: vector<u8>,
-        b: vector<u8>,
-        c: vector<u8>
+        b: vector<u8>
     ): u64 {
-        v_a<u8>(&mut b, c); // Append c onto b
         v_a<u8>(&mut a, b); // Append b onto a
         u(a) // Return u64 equivalent of concatenated bytestring
     }
@@ -3008,15 +3007,13 @@ module movemate::crit_bit_u64 {
         assert!(u(b"10101010") == 170, 6);
         assert!(u(b"00000001") == 1, 7);
         assert!(u(b"11111111") == 255, 8);
-        assert!(u_long( // 60 characters on first two lines, 8 on last
+        assert!(u_long( // 60 characters on first line, 4 on last
             b"111111111111111111111111111111111111111111111111111111111111",
-            b"111111111111111111111111111111111111111111111111111111111111",
-            b"11111111"
+            b"1111",
         ) == HI_64, 9);
-        assert!(u_long( // 60 characters on first two lines, 8 on last
+        assert!(u_long( // 60 characters on first line, 4 on last
             b"111111111111111111111111111111111111111111111111111111111111",
-            b"111111111111111111111111111111111111111111111111111111111111",
-            b"11111110"
+            b"1110",
         ) == HI_64 - 1, 10);
     }
 
