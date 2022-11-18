@@ -7,8 +7,8 @@
 module movemate::virtual_block {
     use std::vector;
 
-    use sui::pay;
     use sui::coin::{Self, Coin};
+    use sui::pay;
     use sui::tx_context::{Self, TxContext};
 
     use movemate::crit_bit::{Self, CB};
@@ -84,6 +84,8 @@ module movemate::virtual_block {
 
     #[test_only]
     use sui::test_scenario;
+    #[test_only]
+    use sui::object::{Self, UID};
 
     #[test_only]
     struct FakeEntry has store, drop {
@@ -95,6 +97,7 @@ module movemate::virtual_block {
 
     #[test_only]
     struct TempMempool has key {
+        id: UID,
         mempool: Mempool<FakeMoney, FakeEntry>
     }
 
@@ -153,6 +156,7 @@ module movemate::virtual_block {
 
         // clean up: we can't drop mempool so we store it
         sui::transfer::transfer(TempMempool {
+            id: object::new(test_scenario::ctx(scenario)),
             mempool,
         }, TEST_MINER_ADDR);
         test_scenario::end(scenario_wrapper);
@@ -186,6 +190,7 @@ module movemate::virtual_block {
 
         // clean up: we can't drop mempool so we store it
         sui::transfer::transfer(TempMempool {
+            id: object::new(test_scenario::ctx(scenario)),
             mempool,
         }, TEST_MINER_ADDR);
         test_scenario::end(scenario_wrapper);

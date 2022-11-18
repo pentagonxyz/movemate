@@ -53,7 +53,7 @@ module movemate::acl_module {
     }
 
     #[test_only]
-    struct TestACL has key {
+    struct TestACL has store {
         acl: ACL
     }
 
@@ -77,7 +77,6 @@ module movemate::acl_module {
             i = i + 1;
         };
 
-        // can't drop so must store
-        sui::transfer::share_object(TestACL { acl });
+        let ACL { permissions: _ } = acl;
     }
 }
