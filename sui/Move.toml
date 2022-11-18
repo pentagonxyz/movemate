@@ -1,21 +1,13 @@
 [package]
 name = "Movemate"
-version = "1.3.1"
+version = "1.4.0"
 authors = ["David Lucid <david@pentagon.xyz>"]
 
 [addresses]
-std = "0x1"
-sui = "0x2"
-movemate = "0x892cae7358b0d0552c474ec3ac976a3807f8319f"
-
-[dependencies.MoveStdlib]
-git = "https://github.com/MystenLabs/sui.git"
-subdir = "crates/sui-framework/deps/move-stdlib"
-# devnet-0.15.2
-rev = "4409cd3bab257f806b369e3b17359a9713fea544"
+movemate = "0x04a9fbc1c0169105caed8e45988ae00e943516d6"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework"
-# devnet-0.15.2
-rev = "4409cd3bab257f806b369e3b17359a9713fea544"
+# devnet-0.16.0
+rev = "6c001d0c491d1481fd4b477881d320e2421a6517"
