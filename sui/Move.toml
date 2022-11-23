@@ -4,7 +4,7 @@ version = "1.4.0"
 authors = ["David Lucid <david@pentagon.xyz>"]
 
 [addresses]
-movemate = "0x04a9fbc1c0169105caed8e45988ae00e943516d6"
+movemate = "0x19fec1ba0de1647407c29c7434d9256db96fdf34"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
