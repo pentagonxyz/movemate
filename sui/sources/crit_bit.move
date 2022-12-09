@@ -1833,7 +1833,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 3)]
+    #[expected_failure(abort_code = E_BORROW_EMPTY)]
     /// Assert failure for attempted borrow on empty tree
     fun borrow_empty() {
         let cb = empty<u8>(); // Initialize empty tree
@@ -1842,7 +1842,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 3)]
+    #[expected_failure(abort_code = E_BORROW_EMPTY)]
     /// Assert failure for attempted borrow on empty tree
     fun borrow_mut_empty() {
         let cb = empty<u8>(); // Initialize empty tree
@@ -1851,7 +1851,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = E_NOT_HAS_K)]
     /// Assert failure for attempted borrow without matching key
     fun borrow_mut_no_match():
     CB<u8> {
@@ -1882,7 +1882,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = E_NOT_HAS_K)]
     /// Assert failure for attempted borrow without matching key
     fun borrow_no_match():
     CB<u8> {
@@ -1892,7 +1892,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 5)]
+    #[expected_failure(abort_code = E_INSERT_FULL)]
     /// Verify length check fails for too many elements
     fun check_len_failure() {
         check_len(HI_64 ^ OUT << N_TYPE); // Tree is full
@@ -1919,7 +1919,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = E_DESTROY_NOT_EMPTY)]
     /// Verify cannot destroy non-empty tree
     fun destroy_empty_fail() {
         // Attempt destroying singleton
@@ -2002,7 +2002,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = E_HAS_K)]
     /// Verify aborts when key already in tree
     fun insert_general_failure():
     CB<u8> {
@@ -2014,7 +2014,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = E_HAS_K)]
     /// Verify failure for attempting duplicate insertion on singleton
     fun insert_singleton_failure():
     CB<u8> {
@@ -2251,7 +2251,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 7)]
+    #[expected_failure(abort_code = E_LOOKUP_EMPTY)]
     /// Verify maximum key lookup failure when tree empty
     fun max_key_failure_empty() {
         let cb = empty<u8>(); // Initialize empty tree
@@ -2274,7 +2274,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 7)]
+    #[expected_failure(abort_code = E_LOOKUP_EMPTY)]
     /// Verify minimum key lookup failure when tree empty
     fun min_key_failure_empty() {
         let cb = empty<u8>(); // Initialize empty tree
@@ -2310,7 +2310,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 6)]
+    #[expected_failure(abort_code = E_POP_EMPTY)]
     /// Verify failure for attempting to pop from empty tree
     fun pop_failure_empty() {
         let cb = empty<u8>(); // Initialize empty tree
@@ -2319,7 +2319,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = E_NOT_HAS_K)]
     /// Verify failure for attempting to pop key not in tree
     fun pop_general_failure_no_key():
     CB<u8> {
@@ -2449,7 +2449,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4)]
+    #[expected_failure(abort_code = E_NOT_HAS_K)]
     // Verify pop failure when key not in tree
     fun pop_singleton_failure():
     CB<u8> {
@@ -3000,7 +3000,7 @@ module movemate::crit_bit {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = E_BIT_NOT_0_OR_1)]
     /// Verify failure for non-binary-representative byte string
     fun u_failure() {u(b"2");}
 

@@ -437,7 +437,6 @@ module movemate::governance {
     struct FakeProposalCapability has drop { }
 
     #[test]
-    #[expected_failure(abort_code = 0xACE)] // Abort on purpose so we don't have to deal with return_shared failing (since next_tx breaks it) // TODO: This is so hacky
     public entry fun test_end_to_end() {
         // Test scenario
         let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
@@ -538,7 +537,6 @@ module movemate::governance {
         );
 
         // Return forum + destroy coins since we can't drop them
-        assert!(false, 0xACE); // Abort on purpose so we don't have to deal with return_shared failing (since next_tx breaks it) // TODO: This is so hacky
         test_scenario::return_shared(forum_wrapper);
         test_scenario::return_shared(proposal_wrapper);
         test_scenario::return_shared(delegate_a_wrapper);
@@ -550,7 +548,7 @@ module movemate::governance {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0xb01)]
+    #[expected_failure(abort_code = ECANCELLATION_VOTES_ABOVE_THRESHOLD)]
     public entry fun test_proposal_cancellation() {
         let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
         let scenario = &mut scenario_wrapper;
@@ -640,7 +638,7 @@ module movemate::governance {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0xa01)]
+    #[expected_failure(abort_code = EAPPROVAL_VOTES_BELOW_THRESHOLD)]
     public entry fun test_proposal_lack_of_quorum() {
         // Test scenario
         let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
@@ -722,7 +720,7 @@ module movemate::governance {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x103)]
+    #[expected_failure(abort_code = EPROPOSER_VOTES_BELOW_THRESHOLD)]
     public entry fun test_unqualified_proposer() {
         // Test scenario
         let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
