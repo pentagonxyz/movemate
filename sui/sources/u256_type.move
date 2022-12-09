@@ -682,7 +682,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = EWORDS_OVERFLOW)]
     fun test_get_d_overflow() {
         let a = DU256 {
             v0: 1,
@@ -731,7 +731,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = EWORDS_OVERFLOW)]
     fun test_put_d_overflow() {
         let a = DU256 {
             v0: 1,
@@ -794,7 +794,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = EWORDS_OVERFLOW)]
     fun test_get_aborts() {
         let _ = get(&zero(), 4);
     }
@@ -819,7 +819,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1)]
+    #[expected_failure(abort_code = EWORDS_OVERFLOW)]
     fun test_put_overflow() {
         let a = zero();
         put(&mut a, 6, 255);
@@ -851,7 +851,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = EOVERFLOW)]
     fun test_add_overflow() {
         let max = (U64_MAX as u64);
 
@@ -875,7 +875,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = EOVERFLOW)]
     fun test_sub_overflow() {
         let a = from_u128(0);
         let b = from_u128(1);
@@ -884,7 +884,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0)]
+    #[expected_failure(abort_code = ECAST_OVERFLOW)]
     fun test_too_big_to_cast_to_u128() {
         let a = from_u128(U128_MAX);
         let b = from_u128(U128_MAX);
@@ -967,7 +967,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code = 2)]
+    #[expected_failure(abort_code = EOVERFLOW)]
     fun test_mul_overflow() {
         let max = (U64_MAX as u64);
 
@@ -1109,7 +1109,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code=3)]
+    #[expected_failure(abort_code=EDIV_BY_ZERO)]
     fun test_div_by_zero() {
         let a = from_u128(1);
         let _z = div(a, from_u128(0));
@@ -1122,7 +1122,7 @@ module movemate::u256_type {
     }
 
     #[test]
-    #[expected_failure(abort_code=0)]
+    #[expected_failure(abort_code=ECAST_OVERFLOW)]
     fun test_as_u64_overflow() {
         let _ = as_u64(from_u128(U128_MAX));
     }

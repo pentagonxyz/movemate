@@ -146,7 +146,7 @@ module movemate::escrow_shared {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x002)]
+    #[expected_failure(abort_code = ENOT_SENDER)]
     public fun test_transfer_unauthorized() {
         let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
         let scenario = &mut scenario_wrapper;
@@ -159,7 +159,7 @@ module movemate::escrow_shared {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x102)]
+    #[expected_failure(abort_code = ENOT_RECIPIENT)]
     public fun test_refund_unauthorized() {
         let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
         let scenario = &mut scenario_wrapper;
@@ -172,7 +172,7 @@ module movemate::escrow_shared {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x202)]
+    #[expected_failure(abort_code = ENOT_ARBITRATOR)]
     public fun test_transfer_arbitrator_unauthorized() {
         let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
         let scenario = &mut scenario_wrapper;
@@ -185,7 +185,7 @@ module movemate::escrow_shared {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x202)]
+    #[expected_failure(abort_code = ENOT_ARBITRATOR)]
     public fun test_refund_arbitrator_unauthorized() {
         let scenario_wrapper = test_scenario::begin(TEST_SENDER_ADDR);
         let scenario = &mut scenario_wrapper;

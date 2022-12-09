@@ -163,7 +163,7 @@ module movemate::virtual_block {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0x001)]
+    #[expected_failure(abort_code = EBLOCK_TIME_NOT_PASSED)]
     public entry fun test_mine_before_time() {
         // Test scenario
         let scenario_wrapper = test_scenario::begin(TEST_MINER_ADDR);
